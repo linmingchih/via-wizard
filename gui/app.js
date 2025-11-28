@@ -686,10 +686,20 @@ function drawInstance(inst) {
     if (pIndex < 0 || pIndex >= padstacks.length) return;
     const p = padstacks[pIndex];
 
+    // Calculate max pad size
+    let diameter = p.holeDiameter || 0;
+    if (p.layers) {
+        Object.values(p.layers).forEach(layer => {
+            if (layer.padSize && layer.padSize > diameter) {
+                diameter = layer.padSize;
+            }
+        });
+    }
+
     const color = inst.id === selectedInstanceId ? '#007acc' : '#b87333';
 
     if (inst.type === 'single' || inst.type === 'gnd') {
-        drawVia(inst.x, inst.y, p.holeDiameter, color);
+        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter);
     } else if (inst.type === 'differential') {
         // Draw two vias
         const pitch = inst.properties.pitch || 1.0;
@@ -698,8 +708,8 @@ function drawInstance(inst) {
         const dx = isVert ? 0 : pitch / 2;
         const dy = isVert ? pitch / 2 : 0;
 
-        drawVia(inst.x - dx, inst.y - dy, p.holeDiameter, color);
-        drawVia(inst.x + dx, inst.y + dy, p.holeDiameter, color);
+        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter);
+        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter);
 
         // Link line
         ctx.beginPath();
@@ -713,17 +723,20 @@ function drawInstance(inst) {
     }
 }
 
-function drawVia(x, y, diameter, color) {
+function drawVia(x, y, diameter, color, holeDiameter) {
+    // Pad
     ctx.beginPath();
     ctx.fillStyle = color;
     ctx.arc(x, y, diameter / 2, 0, 2 * Math.PI);
     ctx.fill();
 
     // Hole
-    ctx.beginPath();
-    ctx.fillStyle = '#000';
-    ctx.arc(x, y, diameter / 4, 0, 2 * Math.PI); // Simplified hole size
-    ctx.fill();
+    if (holeDiameter) {
+        ctx.beginPath();
+        ctx.fillStyle = '#000';
+        ctx.arc(x, y, holeDiameter / 2, 0, 2 * Math.PI);
+        ctx.fill();
+    }
 }
 
 function handleCanvasMouseDown(e) {
