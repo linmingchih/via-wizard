@@ -3,9 +3,6 @@ let isMessageWindowVisible = true;
 let currentStackup = [];
 let currentUnits = 'mm';
 
-// Debug Alert
-// alert("App.js Loaded"); 
-
 // Tab Switching Logic
 function openTab(tabId) {
     const panes = document.querySelectorAll('.tab-pane');
@@ -19,6 +16,8 @@ function openTab(tabId) {
     // Redraw visualizer if switching to Stackup tab
     if (tabId === 'tab-stackup') {
         render2DView();
+    } else if (tabId === 'tab-padstack') {
+        renderPadstackTab();
     }
 }
 
@@ -54,7 +53,6 @@ function clearMessages() {
 // Global Error Handler
 window.onerror = function (message, source, lineno, colno, error) {
     addMessage(`JS Error: ${message} at ${source}:${lineno}`);
-    // alert(`JS Error: ${message}`);
     return false;
 };
 
@@ -110,7 +108,6 @@ function createLayer(name, type, thickness, dk, df, cond, fill, isRef) {
 }
 
 function renderStackupTable() {
-    // addMessage(`Rendering table with ${currentStackup.length} layers.`);
     const tbody = document.querySelector('#stackup-table tbody');
     if (!tbody) {
         addMessage("Error: tbody not found!");
@@ -174,10 +171,9 @@ function updateLayer(index, key, value) {
             currentStackup[index].dk = "";
             currentStackup[index].df = "";
             currentStackup[index].fillMaterial = "";
-            // Keep isReference relevant for Conductor? Actually user said IsRef only for Conductor.
         } else {
             currentStackup[index].conductivity = "";
-            currentStackup[index].isReference = false; // Clear reference if becoming dielectric
+            currentStackup[index].isReference = false;
         }
         renderStackupTable();
     }
@@ -208,9 +204,6 @@ function handlePaste(event) {
     const rows = pastedData.trim().split('\n');
     if (rows.length === 0) return;
 
-    // Simple parsing assumption: Tab separated
-    // Expected order: Name, Type, Thickness, Dk, Df, Cond, Fill, IsRef
-
     currentStackup = [];
     rows.forEach(row => {
         const cols = row.split('\t');
@@ -239,18 +232,13 @@ function render2DView() {
 
     if (currentStackup.length === 0) return;
 
-    // Calculate total thickness for scaling
     const totalThickness = currentStackup.reduce((sum, l) => sum + (l.thickness || 0), 0);
     if (totalThickness === 0) return;
 
-    const width = container.clientWidth;
     const height = container.clientHeight;
     const scaleY = (height - 20) / totalThickness; // Padding 10px
-    const startY = 10;
+    let currentY = 10;
 
-    let currentY = startY;
-
-    // Create SVG
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("width", "100%");
@@ -264,7 +252,6 @@ function render2DView() {
         rect.setAttribute("width", "80%");
         rect.setAttribute("height", h);
 
-        // Color based on type
         if (layer.type === 'Conductor') {
             rect.setAttribute("fill", "#b87333"); // Copper
         } else {
@@ -274,7 +261,6 @@ function render2DView() {
         rect.setAttribute("stroke", "#666");
         rect.setAttribute("stroke-width", "1");
 
-        // Tooltip
         const title = document.createElementNS(svgNS, "title");
         title.textContent = `${layer.name} (${layer.thickness} ${currentUnits})`;
         rect.appendChild(title);
@@ -332,6 +318,233 @@ async function loadProject() {
 
 async function exitApp() {
     if (window.pywebview) await window.pywebview.api.exit_app();
+}
+
+// Padstack Logic
+let padstacks = [];
+let currentPadstackIndex = -1;
+
+function renderPadstackTab() {
+    const warningDiv = document.getElementById('padstack-warning');
+    const contentDiv = document.getElementById('padstack-content');
+
+    if (!currentStackup || currentStackup.length === 0) {
+        if (warningDiv) warningDiv.classList.remove('hidden');
+        if (contentDiv) contentDiv.classList.add('hidden');
+        return;
+    } else {
+        if (warningDiv) warningDiv.classList.add('hidden');
+        if (contentDiv) contentDiv.classList.remove('hidden');
+    }
+
+    renderPadstackList();
+    renderPadstackForm();
+    renderPadstackLayersTable();
+}
+
+function addPadstack() {
+    const name = `Padstack_${padstacks.length + 1}`;
+    const newPadstack = {
+        name: name,
+        holeDiameter: 0.2,
+        material: "Copper",
+        plating: 100,
+        startLayer: currentStackup.length > 0 ? currentStackup[0].name : "",
+        stopLayer: currentStackup.length > 0 ? currentStackup[currentStackup.length - 1].name : "",
+        backdrill: {
+            enabled: false,
+            diameter: 0.3,
+            mode: "layer", // or 'depth'
+            toLayer: "",
+            stub: 0,
+            depth: 0
+        },
+        layers: {} // Map layerName -> {padSize, antipadSize}
+    };
+
+    padstacks.push(newPadstack);
+    currentPadstackIndex = padstacks.length - 1;
+    renderPadstackTab();
+}
+
+function deletePadstack() {
+    if (currentPadstackIndex >= 0 && currentPadstackIndex < padstacks.length) {
+        padstacks.splice(currentPadstackIndex, 1);
+        currentPadstackIndex = padstacks.length > 0 ? 0 : -1;
+        renderPadstackTab();
+    }
+}
+
+function selectPadstack(index) {
+    currentPadstackIndex = index;
+    renderPadstackTab();
+}
+
+function renderPadstackList() {
+    const list = document.getElementById('padstack-list');
+    if (!list) return;
+    list.innerHTML = '';
+    padstacks.forEach((p, i) => {
+        const li = document.createElement('li');
+        li.textContent = p.name;
+        if (i === currentPadstackIndex) li.classList.add('active');
+        li.onclick = () => selectPadstack(i);
+        list.appendChild(li);
+    });
+}
+
+function renderPadstackForm() {
+    if (currentPadstackIndex === -1) {
+        // Disable inputs or clear them
+        const inputs = ['pad-name', 'pad-hole-diam', 'pad-material', 'pad-plating', 'pad-start-layer', 'pad-stop-layer'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        return;
+    }
+
+    const p = padstacks[currentPadstackIndex];
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+
+    setVal('pad-name', p.name);
+    setVal('pad-hole-diam', p.holeDiameter);
+    setVal('pad-material', p.material);
+    setVal('pad-plating', p.plating);
+
+    // Populate Layer Dropdowns (Conductors only)
+    const startSelect = document.getElementById('pad-start-layer');
+    const stopSelect = document.getElementById('pad-stop-layer');
+
+    if (startSelect && stopSelect) {
+        startSelect.innerHTML = '';
+        stopSelect.innerHTML = '';
+
+        currentStackup.forEach(l => {
+            if (l.type === 'Conductor') {
+                startSelect.add(new Option(l.name, l.name));
+                stopSelect.add(new Option(l.name, l.name));
+            }
+        });
+
+        startSelect.value = p.startLayer;
+        stopSelect.value = p.stopLayer;
+    }
+
+    // Backdrill Config
+    const bdCheck = document.getElementById('pad-backdrill-en');
+    if (bdCheck) bdCheck.checked = p.backdrill.enabled;
+
+    const bdConfigDiv = document.getElementById('backdrill-inline-config');
+    if (bdConfigDiv) {
+        if (p.backdrill.enabled) {
+            bdConfigDiv.classList.remove('disabled');
+        } else {
+            bdConfigDiv.classList.add('disabled');
+        }
+    }
+
+    setVal('bd-diameter', p.backdrill.diameter);
+
+    // Mode Radio
+    const radios = document.getElementsByName('bd-mode');
+    radios.forEach(r => {
+        if (r.value === p.backdrill.mode) r.checked = true;
+    });
+    toggleBdMode(p.backdrill.mode);
+
+    // Layer Mode Inputs
+    const toLayerSelect = document.getElementById('bd-to-layer');
+    if (toLayerSelect) {
+        toLayerSelect.innerHTML = '';
+        currentStackup.forEach(l => {
+            if (l.type === 'Conductor') {
+                toLayerSelect.add(new Option(l.name, l.name));
+            }
+        });
+        toLayerSelect.value = p.backdrill.toLayer;
+    }
+    setVal('bd-stub', p.backdrill.stub);
+
+    // Depth Mode Inputs
+    setVal('bd-depth', p.backdrill.depth);
+}
+
+function updatePadstackProperty(key, value) {
+    if (currentPadstackIndex === -1) return;
+    const p = padstacks[currentPadstackIndex];
+    p[key] = value;
+    if (key === 'name') renderPadstackList();
+    renderPadstackLayersTable(); // Re-render table as hole diameter might affect defaults
+}
+
+function toggleBackdrill(enabled) {
+    if (currentPadstackIndex === -1) return;
+    padstacks[currentPadstackIndex].backdrill.enabled = enabled;
+    const bdConfigDiv = document.getElementById('backdrill-inline-config');
+    if (bdConfigDiv) {
+        if (enabled) {
+            bdConfigDiv.classList.remove('disabled');
+        } else {
+            bdConfigDiv.classList.add('disabled');
+        }
+    }
+}
+
+function toggleBdMode(mode) {
+    if (currentPadstackIndex !== -1) {
+        padstacks[currentPadstackIndex].backdrill.mode = mode;
+    }
+
+    const layerGroup = document.getElementById('bd-mode-layer-group');
+    const depthGroup = document.getElementById('bd-mode-depth-group');
+
+    if (mode === 'layer') {
+        if (layerGroup) layerGroup.classList.remove('hidden');
+        if (depthGroup) depthGroup.classList.add('hidden');
+    } else {
+        if (layerGroup) layerGroup.classList.add('hidden');
+        if (depthGroup) depthGroup.classList.remove('hidden');
+    }
+}
+
+function updateBackdrillProperty(key, value) {
+    if (currentPadstackIndex === -1) return;
+    const p = padstacks[currentPadstackIndex];
+    p.backdrill[key] = value;
+}
+
+function renderPadstackLayersTable() {
+    const tbody = document.querySelector('#padstack-layers-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (currentPadstackIndex === -1) return;
+    const p = padstacks[currentPadstackIndex];
+
+    currentStackup.forEach(layer => {
+        if (layer.type !== 'Conductor') return; // Only show conductor layers
+
+        const tr = document.createElement('tr');
+
+        // Default sizes if not set
+        const padSize = p.layers[layer.name]?.padSize || (p.holeDiameter * 1.5).toFixed(3);
+        const antipadSize = p.layers[layer.name]?.antipadSize || (p.holeDiameter * 2.0).toFixed(3);
+
+        tr.innerHTML = `
+            <td>${layer.name}</td>
+            <td><input type="number" value="${padSize}" onchange="updatePadstackLayer('${layer.name}', 'padSize', this.value)"></td>
+            <td><input type="number" value="${antipadSize}" onchange="updatePadstackLayer('${layer.name}', 'antipadSize', this.value)"></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updatePadstackLayer(layerName, key, value) {
+    if (currentPadstackIndex === -1) return;
+    const p = padstacks[currentPadstackIndex];
+    if (!p.layers[layerName]) p.layers[layerName] = {};
+    p.layers[layerName][key] = parseFloat(value);
 }
 
 // Initialize

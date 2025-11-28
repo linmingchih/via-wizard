@@ -107,14 +107,149 @@
 
             <!-- Tab 2: Padstack Design -->
             <div id="tab-padstack" class="tab-pane">
-                <h2>Padstack Design</h2>
-                <p>Configure padstack parameters.</p>
+                <div id="padstack-warning" class="hidden" style="padding: 20px; color: #ccc; text-align: center;">
+                    <h3>No Stackup Loaded</h3>
+                    <p>Please create or load a stackup in the Stackup tab to define padstacks.</p>
+                </div>
+                <div id="padstack-content" class="padstack-container">
+                    <!-- Left Panel: Padstack List -->
+                    <div class="padstack-sidebar">
+                        <div class="sidebar-header">
+                            <h3>Padstacks</h3>
+                            <div class="sidebar-actions">
+                                <button onclick="addPadstack()" title="Add Padstack">+</button>
+                                <button onclick="deletePadstack()" title="Delete Padstack">-</button>
+                            </div>
+                        </div>
+                        <ul id="padstack-list">
+                            <!-- List items injected by JS -->
+                        </ul>
+                    </div>
+
+                    <!-- Middle Panel: Layer Definition -->
+                    <div class="padstack-main">
+                        <div class="config-section flex-grow">
+                            <h4>Layer Definition</h4>
+                            <div class="table-container">
+                                <table id="padstack-layers-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Layer</th>
+                                            <th>Pad Size</th>
+                                            <th>Antipad Size</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Rows injected by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Properties & Settings -->
+                    <div class="padstack-right">
+                        <div class="config-section">
+                            <h4>General Properties</h4>
+                            <div class="form-group">
+                                <label>Name:</label>
+                                <input type="text" id="pad-name" onchange="updatePadstackProperty('name', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Hole Diameter:</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="pad-hole-diam"
+                                        onchange="updatePadstackProperty('holeDiameter', this.value)">
+                                    <span class="unit-label">mm</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Material:</label>
+                                <select id="pad-material" onchange="updatePadstackProperty('material', this.value)">
+                                    <option value="Copper">Copper</option>
+                                    <option value="Gold">Gold</option>
+                                    <option value="Aluminum">Aluminum</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Plating %:</label>
+                                <input type="number" id="pad-plating" value="100"
+                                    onchange="updatePadstackProperty('plating', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="config-section">
+                            <h4>Range & Backdrill</h4>
+                            <div class="form-group">
+                                <label>Start Layer:</label>
+                                <select id="pad-start-layer"
+                                    onchange="updatePadstackProperty('startLayer', this.value)"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Stop Layer:</label>
+                                <select id="pad-stop-layer"
+                                    onchange="updatePadstackProperty('stopLayer', this.value)"></select>
+                            </div>
+
+                            <div class="form-group"
+                                style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="pad-backdrill-en"
+                                        onchange="toggleBackdrill(this.checked)">
+                                    <label for="pad-backdrill-en">Enable Backdrill</label>
+                                </div>
+                            </div>
+
+                            <div id="backdrill-inline-config" class="disabled">
+                                <div class="form-group">
+                                    <label>Drill Diameter:</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="bd-diameter"
+                                            onchange="updateBackdrillProperty('diameter', this.value)">
+                                        <span class="unit-label">mm</span>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Mode:</label>
+                                    <div class="radio-group">
+                                        <input type="radio" name="bd-mode" value="layer" checked
+                                            onchange="toggleBdMode(this.value)"> By Layer
+                                        <input type="radio" name="bd-mode" value="depth"
+                                            onchange="toggleBdMode(this.value)"> By Depth
+                                    </div>
+                                </div>
+
+                                <div id="bd-mode-layer-group">
+                                    <div class="form-group">
+                                        <label>To Layer:</label>
+                                        <select id="bd-to-layer"
+                                            onchange="updateBackdrillProperty('toLayer', this.value)"></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Stub Length:</label>
+                                        <input type="number" id="bd-stub"
+                                            onchange="updateBackdrillProperty('stub', this.value)">
+                                    </div>
+                                </div>
+
+                                <div id="bd-mode-depth-group" class="hidden">
+                                    <div class="form-group">
+                                        <label>Drill Depth:</label>
+                                        <input type="number" id="bd-depth"
+                                            onchange="updateBackdrillProperty('depth', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab 3: Placement Design -->
             <div id="tab-placement" class="tab-pane">
                 <h2>Placement Design</h2>
-                <p>Configure via placement parameters.</p>
+                <p>Configure placement parameters.</p>
             </div>
 
             <!-- Tab 4: Signal Design -->
