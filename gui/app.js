@@ -634,6 +634,18 @@ function initCanvas() {
         }
     });
 
+    // Board Size Inputs
+    const wInput = document.getElementById('canvas-width');
+    const hInput = document.getElementById('canvas-height');
+    if (wInput) {
+        wInput.addEventListener('change', drawPlacementCanvas);
+        wInput.addEventListener('input', drawPlacementCanvas);
+    }
+    if (hInput) {
+        hInput.addEventListener('change', drawPlacementCanvas);
+        hInput.addEventListener('input', drawPlacementCanvas);
+    }
+
     canvasInitialized = true;
 }
 
@@ -654,6 +666,19 @@ function drawPlacementCanvas() {
 
     // Draw Grid
     drawGrid();
+
+    // Draw Board Outline (Green Transparent Rectangle)
+    const boardW = parseFloat(document.getElementById('canvas-width').value) || 0;
+    const boardH = parseFloat(document.getElementById('canvas-height').value) || 0;
+
+    if (boardW > 0 && boardH > 0) {
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+        ctx.fillRect(-boardW / 2, -boardH / 2, boardW, boardH);
+
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+        ctx.lineWidth = 2 / canvasState.scale;
+        ctx.strokeRect(-boardW / 2, -boardH / 2, boardW, boardH);
+    }
 
     // Draw Axes
     ctx.beginPath();
