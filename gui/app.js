@@ -941,10 +941,40 @@ function checkSelection(x, y) {
             if (maxD > 0) radius = maxD / 2;
         }
 
-        const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
-        if (dist <= radius) return inst.id;
+        if (inst.type === 'differential') {
+            const pitch = inst.properties.pitch || 1.0;
+            const isVert = inst.properties.orientation === 'vertical';
+            const dx = isVert ? 0 : pitch / 2;
+            const dy = isVert ? pitch / 2 : 0;
+
+            const x1 = inst.x - dx;
+            const y1 = inst.y - dy;
+            const x2 = inst.x + dx;
+            const y2 = inst.y + dy;
+
+            // Check via 1
+            if (Math.sqrt((x1 - x) ** 2 + (y1 - y) ** 2) <= radius) return inst.id;
+            // Check via 2
+            if (Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2) <= radius) return inst.id;
+
+            // Check link line (with some tolerance, e.g., radius or fixed width)
+            const distSq = distToSegmentSquared({ x, y }, { x: x1, y: y1 }, { x: x2, y: y2 });
+            if (distSq <= radius * radius) return inst.id;
+
+        } else {
+            const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
+            if (dist <= radius) return inst.id;
+        }
     }
     return null;
+}
+
+function distToSegmentSquared(p, v, w) {
+    const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+    if (l2 === 0) return (p.x - v.x) ** 2 + (p.y - v.y) ** 2;
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return (p.x - (v.x + t * (w.x - v.x))) ** 2 + (p.y - (v.y + t * (w.y - v.y))) ** 2;
 }
 
 function placeInstance(x, y) {
