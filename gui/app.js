@@ -718,12 +718,33 @@ function drawInstance(inst) {
         });
     }
 
+    // Calculate max antipad size
+    let antipadDiameter = 0;
+    if (currentStackup && currentStackup.length > 0) {
+        currentStackup.forEach(layer => {
+            if (layer.type === 'Conductor') {
+                const layerAntipadSize = (p.layers && p.layers[layer.name] && p.layers[layer.name].antipadSize)
+                    ? p.layers[layer.name].antipadSize
+                    : 30; // Default 30
+                if (layerAntipadSize > antipadDiameter) {
+                    antipadDiameter = layerAntipadSize;
+                }
+            }
+        });
+    } else if (p.layers) {
+        Object.values(p.layers).forEach(layer => {
+            if (layer.antipadSize && layer.antipadSize > antipadDiameter) {
+                antipadDiameter = layer.antipadSize;
+            }
+        });
+    }
+
     let color = '#b87333';
     if (inst.type === 'gnd') color = '#998877'; // Desaturated for GND
     if (inst.id === selectedInstanceId) color = '#007acc';
 
     if (inst.type === 'single' || inst.type === 'gnd') {
-        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
+        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection, antipadDiameter);
     } else if (inst.type === 'differential') {
         // Draw two vias
         const pitch = inst.properties.pitch || 1.0;
@@ -732,8 +753,8 @@ function drawInstance(inst) {
         const dx = isVert ? 0 : pitch / 2;
         const dy = isVert ? pitch / 2 : 0;
 
-        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
-        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
+        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, antipadDiameter);
+        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, antipadDiameter);
 
         // Link line
         ctx.beginPath();
@@ -747,7 +768,17 @@ function drawInstance(inst) {
     }
 }
 
-function drawVia(x, y, diameter, color, holeDiameter, arrowDirection) {
+function drawVia(x, y, diameter, color, holeDiameter, arrowDirection, antipadDiameter) {
+    // Antipad (Dashed Circle)
+    if (antipadDiameter && antipadDiameter > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#aaa';
+        ctx.setLineDash([4, 2]); // Dashed
+        ctx.lineWidth = 1 / canvasState.scale;
+        ctx.arc(x, y, antipadDiameter / 2, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
     // Pad
     ctx.beginPath();
     ctx.fillStyle = color;
