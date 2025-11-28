@@ -625,6 +625,7 @@ function initCanvas() {
     canvas.addEventListener('mousemove', handleCanvasMouseMove);
     canvas.addEventListener('mouseup', handleCanvasMouseUp);
     canvas.addEventListener('wheel', handleCanvasWheel);
+    canvas.addEventListener('dblclick', handleCanvasDoubleClick);
 
     // Keyboard events
     window.addEventListener('keydown', (e) => {
@@ -708,7 +709,7 @@ function drawInstance(inst) {
     if (inst.id === selectedInstanceId) color = '#007acc';
 
     if (inst.type === 'single' || inst.type === 'gnd') {
-        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter);
+        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
     } else if (inst.type === 'differential') {
         // Draw two vias
         const pitch = inst.properties.pitch || 1.0;
@@ -732,7 +733,7 @@ function drawInstance(inst) {
     }
 }
 
-function drawVia(x, y, diameter, color, holeDiameter) {
+function drawVia(x, y, diameter, color, holeDiameter, arrowDirection) {
     // Pad
     ctx.beginPath();
     ctx.fillStyle = color;
@@ -745,6 +746,52 @@ function drawVia(x, y, diameter, color, holeDiameter) {
         ctx.fillStyle = '#000';
         ctx.arc(x, y, holeDiameter / 2, 0, 2 * Math.PI);
         ctx.fill();
+    }
+
+    // Arrow
+    if (typeof arrowDirection !== 'undefined' && arrowDirection !== null) {
+        ctx.save();
+        ctx.translate(x, y);
+        // Rotate: 0=Up, 1=Right, 2=Down, 3=Left
+        ctx.rotate(-arrowDirection * Math.PI / 2);
+
+        const r = diameter / 2;
+
+        // Draw a filled block arrow
+        ctx.beginPath();
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = r * 0.05; // Small stroke to round corners
+        ctx.lineJoin = 'round';
+
+        // Arrow dimensions relative to radius
+        const tipY = r * 0.5;
+        const baseY = -r * 0.5;
+        const headWidth = r * 0.6;
+        const shaftWidth = r * 0.25;
+        const headLength = r * 0.45;
+        const shaftTop = tipY - headLength;
+
+        // Tip
+        ctx.moveTo(0, tipY);
+        // Head Right
+        ctx.lineTo(headWidth / 2, shaftTop);
+        // Shaft Right Top
+        ctx.lineTo(shaftWidth / 2, shaftTop);
+        // Shaft Right Bottom
+        ctx.lineTo(shaftWidth / 2, baseY);
+        // Shaft Left Bottom
+        ctx.lineTo(-shaftWidth / 2, baseY);
+        // Shaft Left Top
+        ctx.lineTo(-shaftWidth / 2, shaftTop);
+        // Head Left
+        ctx.lineTo(-headWidth / 2, shaftTop);
+
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
     }
 }
 
@@ -829,6 +876,25 @@ function handleCanvasMouseUp(e) {
     canvas.style.cursor = hoveredId ? 'grab' : 'crosshair';
 }
 
+function handleCanvasDoubleClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+    const mouseY = -(e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+
+    const clickedId = checkSelection(mouseX, mouseY);
+    if (clickedId) {
+        const inst = placedInstances.find(i => i.id === clickedId);
+        if (inst && inst.type === 'single') {
+            if (typeof inst.properties.arrowDirection === 'undefined') {
+                inst.properties.arrowDirection = 0;
+            }
+            // Rotate clockwise
+            inst.properties.arrowDirection = (inst.properties.arrowDirection + 1) % 4;
+            drawPlacementCanvas();
+        }
+    }
+}
+
 function handleCanvasWheel(e) {
     e.preventDefault();
     const scaleFactor = 1.1;
@@ -885,6 +951,8 @@ function placeInstance(x, y) {
     if (placementMode === 'differential') {
         newInst.properties.pitch = parseFloat(document.getElementById('diff-pitch').value);
         newInst.properties.orientation = document.querySelector('input[name="diff-orient"]:checked').value;
+    } else if (placementMode === 'single') {
+        newInst.properties.arrowDirection = 0; // Default Up
     }
 
     placedInstances.push(newInst);
