@@ -750,6 +750,7 @@ function handleCanvasMouseDown(e) {
         canvasState.dragType = 'pan';
         canvasState.lastX = e.clientX;
         canvasState.lastY = e.clientY;
+        canvas.style.cursor = 'move';
     } else if (e.button === 0) {
         // Check selection
         const clickedId = checkSelection(mouseX, mouseY);
@@ -759,6 +760,7 @@ function handleCanvasMouseDown(e) {
             canvasState.isDragging = true;
             canvasState.dragType = 'move';
             canvasState.dragInstanceId = clickedId;
+            canvas.style.cursor = 'grabbing';
         } else {
             // Place new
             placeInstance(mouseX, mouseY);
@@ -767,6 +769,10 @@ function handleCanvasMouseDown(e) {
 }
 
 function handleCanvasMouseMove(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+    const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+
     if (canvasState.isDragging) {
         if (canvasState.dragType === 'pan') {
             const dx = e.clientX - canvasState.lastX;
@@ -777,10 +783,6 @@ function handleCanvasMouseMove(e) {
             canvasState.lastY = e.clientY;
             drawPlacementCanvas();
         } else if (canvasState.dragType === 'move') {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
-            const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
-
             const inst = placedInstances.find(i => i.id === canvasState.dragInstanceId);
             if (inst) {
                 // Snap to grid
@@ -790,6 +792,14 @@ function handleCanvasMouseMove(e) {
                 drawPlacementCanvas();
                 renderPropertiesPanel(); // Update coordinates in panel
             }
+        }
+    } else {
+        // Hover effect
+        const hoveredId = checkSelection(mouseX, mouseY);
+        if (hoveredId) {
+            canvas.style.cursor = 'grab'; // Hand shape indicating movable
+        } else {
+            canvas.style.cursor = 'crosshair'; // Indicating placement mode
         }
     }
 }
@@ -801,6 +811,13 @@ function handleCanvasMouseUp(e) {
     canvasState.isDragging = false;
     canvasState.dragType = null;
     canvasState.dragInstanceId = null;
+
+    // Reset cursor based on position
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+    const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+    const hoveredId = checkSelection(mouseX, mouseY);
+    canvas.style.cursor = hoveredId ? 'grab' : 'crosshair';
 }
 
 function handleCanvasWheel(e) {
@@ -815,11 +832,26 @@ function handleCanvasWheel(e) {
 }
 
 function checkSelection(x, y) {
-    // Simple hit testing
+    // Hit testing with actual pad size
     for (let i = placedInstances.length - 1; i >= 0; i--) {
         const inst = placedInstances[i];
+
+        // Determine radius
+        let radius = 0.5; // Default fallback
+        const pIndex = inst.padstackIndex;
+        if (pIndex >= 0 && pIndex < padstacks.length) {
+            const p = padstacks[pIndex];
+            let maxD = p.holeDiameter || 0;
+            if (p.layers) {
+                Object.values(p.layers).forEach(l => {
+                    if (l.padSize && l.padSize > maxD) maxD = l.padSize;
+                });
+            }
+            if (maxD > 0) radius = maxD / 2;
+        }
+
         const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
-        if (dist < 0.5) return inst.id; // Threshold
+        if (dist <= radius) return inst.id;
     }
     return null;
 }
