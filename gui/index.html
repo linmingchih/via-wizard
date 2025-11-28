@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Via Wizard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Menu Bar -->
+    <div id="menu-bar">
+        <div class="menu-item">
+            Files
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="openFile()">Open Stackup XML</div>
+                <div class="dropdown-item" onclick="saveProject()">Save Project</div>
+                <div class="dropdown-item" onclick="loadProject()">Load Project</div>
+                <div class="dropdown-item" onclick="exitApp()">Exit</div>
+            </div>
+        </div>
+        <div class="menu-item">
+            Options
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="toggleMessageWindow()">Hide/Show Message Window</div>
+            </div>
+        </div>
+        <div class="menu-item">
+            Help
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="addMessage('User Manual not implemented')">User Manual</div>
+                <div class="dropdown-item" onclick="addMessage('Via Wizard v0.1.0')">About</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <!-- Tabs Header -->
+        <div id="tabs-header">
+            <button class="tab-btn active" onclick="openTab('tab-stackup')">Stackup</button>
+            <button class="tab-btn" onclick="openTab('tab-padstack')">Padstack Design</button>
+            <button class="tab-btn" onclick="openTab('tab-placement')">Placement Design</button>
+            <button class="tab-btn" onclick="openTab('tab-signal')">Signal Design</button>
+            <button class="tab-btn" onclick="openTab('tab-simulation')">Simulation Setup</button>
+            <button class="tab-btn" onclick="openTab('tab-optimization')">Design Optimization</button>
+        </div>
+
+        <!-- Tabs Content -->
+        <div id="tabs-content">
+            <!-- Tab 1: Stackup -->
+            <div id="tab-stackup" class="tab-pane active">
+                <div class="stackup-container">
+                    <!-- Left Panel: Controls & Table -->
+                    <div class="stackup-left">
+                        <div class="stackup-controls">
+                            <div class="control-group">
+                                <label>New Stackup:</label>
+                                <input type="number" id="layer-count" placeholder="N Layers" min="1"
+                                    style="width: 60px;">
+                                <button onclick="createNewStackup()">Create</button>
+                            </div>
+                            <div class="control-group">
+                                <label>Units:</label>
+                                <input type="radio" name="units" value="mm" checked onchange="toggleUnits('mm')"> mm
+                                <input type="radio" name="units" value="mil" onchange="toggleUnits('mil')"> mil
+                            </div>
+                            <div class="control-group">
+                                <button onclick="openFile()">Load XML</button>
+                                <button onclick="saveStackup()">Save XML</button>
+                            </div>
+                        </div>
+
+                        <div class="table-container" onpaste="handlePaste(event)">
+                            <table id="stackup-table">
+                                <thead>
+                                    <tr>
+                                        <th>Layer Name</th>
+                                        <th>Type</th>
+                                        <th>Thickness</th>
+                                        <th>Dk</th>
+                                        <th>Df</th>
+                                        <th>Cond.</th>
+                                        <th>Fill Mat.</th>
+                                        <th>IsRef</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="hint">Tip: Paste Excel data directly into the table.</p>
+                    </div>
+
+                    <!-- Right Panel: 2D Visualization -->
+                    <div class="stackup-right">
+                        <h3>2D Preview</h3>
+                        <div id="stackup-visualizer">
+                            <!-- SVG/Canvas will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Padstack Design -->
+            <div id="tab-padstack" class="tab-pane">
+                <h2>Padstack Design</h2>
+                <p>Configure padstack parameters.</p>
+            </div>
+
+            <!-- Tab 3: Placement Design -->
+            <div id="tab-placement" class="tab-pane">
+                <h2>Placement Design</h2>
+                <p>Configure via placement parameters.</p>
+            </div>
+
+            <!-- Tab 4: Signal Design -->
+            <div id="tab-signal" class="tab-pane">
+                <h2>Signal Design</h2>
+                <p>Configure signal parameters.</p>
+            </div>
+
+            <!-- Tab 5: Simulation Setup -->
+            <div id="tab-simulation" class="tab-pane">
+                <h2>Simulation Setup</h2>
+                <p>Configure simulation settings.</p>
+            </div>
+
+            <!-- Tab 6: Design Optimization -->
+            <div id="tab-optimization" class="tab-pane">
+                <h2>Design Optimization</h2>
+                <p>Run design optimization.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Window -->
+    <div id="message-window">
+        <div id="message-header">
+            <span>Messages</span>
+            <div>
+                <button onclick="clearMessages()" style="font-size: 10px; padding: 2px 5px;">Clear</button>
+                <button onclick="toggleMessageWindow()" style="font-size: 10px; padding: 2px 5px;">Close</button>
+            </div>
+        </div>
+        <div id="message-body">
+            <!-- Logs go here -->
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

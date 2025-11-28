@@ -1,0 +1,10 @@
+[project]
+name = "via-wizard"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyaedt>=0.23.0",
+    "pywebview>=6.1",
+]
