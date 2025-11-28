@@ -348,7 +348,7 @@ function addPadstack() {
     const name = `Padstack_${padstacks.length + 1}`;
     const newPadstack = {
         name: name,
-        holeDiameter: 0.2,
+        holeDiameter: 10,
         material: "Copper",
         plating: 100,
         startLayer: currentStackup.length > 0 ? currentStackup[0].name : "",
@@ -530,8 +530,8 @@ function renderPadstackLayersTable() {
         const tr = document.createElement('tr');
 
         // Default sizes if not set
-        const padSize = p.layers[layer.name]?.padSize || (p.holeDiameter * 1.5).toFixed(3);
-        const antipadSize = p.layers[layer.name]?.antipadSize || (p.holeDiameter * 2.0).toFixed(3);
+        const padSize = p.layers[layer.name]?.padSize || 20;
+        const antipadSize = p.layers[layer.name]?.antipadSize || 30;
 
         tr.innerHTML = `
             <td>${layer.name}</td>
@@ -696,7 +696,21 @@ function drawInstance(inst) {
 
     // Calculate max pad size
     let diameter = p.holeDiameter || 0;
-    if (p.layers) {
+
+    if (currentStackup && currentStackup.length > 0) {
+        currentStackup.forEach(layer => {
+            if (layer.type === 'Conductor') {
+                // Use stored value or default 20
+                const layerPadSize = (p.layers && p.layers[layer.name] && p.layers[layer.name].padSize)
+                    ? p.layers[layer.name].padSize
+                    : 20;
+                if (layerPadSize > diameter) {
+                    diameter = layerPadSize;
+                }
+            }
+        });
+    } else if (p.layers) {
+        // Fallback if currentStackup is empty (shouldn't happen in placement tab usually)
         Object.values(p.layers).forEach(layer => {
             if (layer.padSize && layer.padSize > diameter) {
                 diameter = layer.padSize;
