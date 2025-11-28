@@ -18,6 +18,8 @@ function openTab(tabId) {
         render2DView();
     } else if (tabId === 'tab-padstack') {
         renderPadstackTab();
+    } else if (tabId === 'tab-placement') {
+        renderPlacementTab();
     }
 }
 
@@ -551,3 +553,391 @@ function updatePadstackLayer(layerName, key, value) {
 window.addEventListener('pywebviewready', function () {
     addMessage("Via Wizard GUI Initialized.");
 });
+
+// Placement Logic
+let placedInstances = [];
+let canvasState = {
+    scale: 10, // pixels per unit (mil/mm)
+    offsetX: 0,
+    offsetY: 0,
+    isDragging: false,
+    lastX: 0,
+    lastY: 0,
+    gridSpacing: 5
+};
+let selectedInstanceId = null;
+let placementMode = 'single'; // single, differential, gnd
+
+function renderPlacementTab() {
+    const padstackSelect = document.getElementById('placement-padstack-select');
+    if (padstackSelect) {
+        padstackSelect.innerHTML = '';
+        padstacks.forEach((p, i) => {
+            padstackSelect.add(new Option(p.name, i));
+        });
+    }
+
+    updatePlacementMode();
+    initCanvas();
+    drawPlacementCanvas();
+    renderPlacedList();
+}
+
+function updatePlacementMode() {
+    const radios = document.getElementsByName('place-type');
+    radios.forEach(r => {
+        if (r.checked) placementMode = r.value;
+    });
+
+    const diffSettings = document.getElementById('diff-settings');
+    if (placementMode === 'differential') {
+        diffSettings.classList.remove('hidden');
+    } else {
+        diffSettings.classList.add('hidden');
+    }
+}
+
+let canvasInitialized = false;
+let canvas, ctx;
+
+function initCanvas() {
+    if (canvasInitialized) return;
+
+    canvas = document.getElementById('placement-canvas');
+    const wrapper = document.getElementById('canvas-wrapper');
+
+    if (!canvas || !wrapper) return;
+
+    ctx = canvas.getContext('2d');
+
+    // Resize canvas to fit wrapper
+    const resizeObserver = new ResizeObserver(() => {
+        canvas.width = wrapper.clientWidth;
+        canvas.height = wrapper.clientHeight;
+        canvasState.offsetX = canvas.width / 2;
+        canvasState.offsetY = canvas.height / 2;
+        drawPlacementCanvas();
+    });
+    resizeObserver.observe(wrapper);
+
+    // Event Listeners
+    canvas.addEventListener('mousedown', handleCanvasMouseDown);
+    canvas.addEventListener('mousemove', handleCanvasMouseMove);
+    canvas.addEventListener('mouseup', handleCanvasMouseUp);
+    canvas.addEventListener('wheel', handleCanvasWheel);
+
+    canvasInitialized = true;
+}
+
+function drawPlacementCanvas() {
+    if (!ctx || !canvas) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Clear
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, width, height);
+
+    // Transform
+    ctx.save();
+    ctx.translate(canvasState.offsetX, canvasState.offsetY);
+    ctx.scale(canvasState.scale, canvasState.scale);
+
+    // Draw Grid
+    drawGrid();
+
+    // Draw Axes
+    ctx.beginPath();
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2 / canvasState.scale;
+    ctx.moveTo(-1000, 0); ctx.lineTo(1000, 0); // X Axis
+    ctx.moveTo(0, -1000); ctx.lineTo(0, 1000); // Y Axis
+    ctx.stroke();
+
+    // Draw Instances
+    placedInstances.forEach(inst => {
+        drawInstance(inst);
+    });
+
+    ctx.restore();
+}
+
+function drawGrid() {
+    const spacing = canvasState.gridSpacing;
+    const steps = 100; // Draw 100 grid lines in each direction
+
+    ctx.beginPath();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1 / canvasState.scale;
+
+    for (let i = -steps; i <= steps; i++) {
+        const pos = i * spacing;
+        ctx.moveTo(pos, -steps * spacing);
+        ctx.lineTo(pos, steps * spacing);
+        ctx.moveTo(-steps * spacing, pos);
+        ctx.lineTo(steps * spacing, pos);
+    }
+    ctx.stroke();
+}
+
+function drawInstance(inst) {
+    const pIndex = inst.padstackIndex;
+    if (pIndex < 0 || pIndex >= padstacks.length) return;
+    const p = padstacks[pIndex];
+
+    const color = inst.id === selectedInstanceId ? '#007acc' : '#b87333';
+
+    if (inst.type === 'single' || inst.type === 'gnd') {
+        drawVia(inst.x, inst.y, p.holeDiameter, color);
+    } else if (inst.type === 'differential') {
+        // Draw two vias
+        const pitch = inst.properties.pitch || 1.0;
+        const isVert = inst.properties.orientation === 'vertical';
+
+        const dx = isVert ? 0 : pitch / 2;
+        const dy = isVert ? pitch / 2 : 0;
+
+        drawVia(inst.x - dx, inst.y - dy, p.holeDiameter, color);
+        drawVia(inst.x + dx, inst.y + dy, p.holeDiameter, color);
+
+        // Link line
+        ctx.beginPath();
+        ctx.strokeStyle = '#666';
+        ctx.setLineDash([0.5, 0.5]);
+        ctx.lineWidth = 0.5 / canvasState.scale;
+        ctx.moveTo(inst.x - dx, inst.y - dy);
+        ctx.lineTo(inst.x + dx, inst.y + dy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+function drawVia(x, y, diameter, color) {
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.arc(x, y, diameter / 2, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Hole
+    ctx.beginPath();
+    ctx.fillStyle = '#000';
+    ctx.arc(x, y, diameter / 4, 0, 2 * Math.PI); // Simplified hole size
+    ctx.fill();
+}
+
+function handleCanvasMouseDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+    const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        // Pan
+        canvasState.isDragging = true;
+        canvasState.dragType = 'pan';
+        canvasState.lastX = e.clientX;
+        canvasState.lastY = e.clientY;
+    } else if (e.button === 0) {
+        // Check selection
+        const clickedId = checkSelection(mouseX, mouseY);
+        if (clickedId) {
+            selectInstance(clickedId);
+            // Start dragging instance
+            canvasState.isDragging = true;
+            canvasState.dragType = 'move';
+            canvasState.dragInstanceId = clickedId;
+        } else {
+            // Place new
+            placeInstance(mouseX, mouseY);
+        }
+    }
+}
+
+function handleCanvasMouseMove(e) {
+    if (canvasState.isDragging) {
+        if (canvasState.dragType === 'pan') {
+            const dx = e.clientX - canvasState.lastX;
+            const dy = e.clientY - canvasState.lastY;
+            canvasState.offsetX += dx;
+            canvasState.offsetY += dy;
+            canvasState.lastX = e.clientX;
+            canvasState.lastY = e.clientY;
+            drawPlacementCanvas();
+        } else if (canvasState.dragType === 'move') {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+            const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+
+            const inst = placedInstances.find(i => i.id === canvasState.dragInstanceId);
+            if (inst) {
+                // Snap to grid
+                const snap = canvasState.gridSpacing;
+                inst.x = Math.round(mouseX / snap) * snap;
+                inst.y = Math.round(mouseY / snap) * snap;
+                drawPlacementCanvas();
+                renderPropertiesPanel(); // Update coordinates in panel
+            }
+        }
+    }
+}
+
+function handleCanvasMouseUp(e) {
+    if (canvasState.dragType === 'move') {
+        renderPlacedList(); // Update list coordinates after drop
+    }
+    canvasState.isDragging = false;
+    canvasState.dragType = null;
+    canvasState.dragInstanceId = null;
+}
+
+function handleCanvasWheel(e) {
+    e.preventDefault();
+    const scaleFactor = 1.1;
+    if (e.deltaY < 0) {
+        canvasState.scale *= scaleFactor;
+    } else {
+        canvasState.scale /= scaleFactor;
+    }
+    drawPlacementCanvas();
+}
+
+function checkSelection(x, y) {
+    // Simple hit testing
+    for (let i = placedInstances.length - 1; i >= 0; i--) {
+        const inst = placedInstances[i];
+        const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
+        if (dist < 0.5) return inst.id; // Threshold
+    }
+    return null;
+}
+
+function placeInstance(x, y) {
+    const padstackIndex = document.getElementById('placement-padstack-select').value;
+
+    // Snap to grid
+    const snap = canvasState.gridSpacing;
+    const snappedX = Math.round(x / snap) * snap;
+    const snappedY = Math.round(y / snap) * snap;
+
+    const newInst = {
+        id: Date.now(),
+        type: placementMode,
+        x: snappedX,
+        y: snappedY,
+        padstackIndex: parseInt(padstackIndex),
+        properties: {}
+    };
+
+    if (placementMode === 'differential') {
+        newInst.properties.pitch = parseFloat(document.getElementById('diff-pitch').value);
+        newInst.properties.orientation = document.querySelector('input[name="diff-orient"]:checked').value;
+    }
+
+    placedInstances.push(newInst);
+    drawPlacementCanvas();
+    renderPlacedList();
+}
+
+function selectInstance(id) {
+    selectedInstanceId = id;
+    drawPlacementCanvas();
+    renderPlacedList();
+    renderPropertiesPanel();
+}
+
+function renderPlacedList() {
+    const list = document.getElementById('placed-list');
+    list.innerHTML = '';
+    placedInstances.forEach(inst => {
+        const li = document.createElement('li');
+        const pName = padstacks[inst.padstackIndex]?.name || 'Unknown';
+        li.textContent = `${inst.type} (${pName}) @ [${inst.x}, ${inst.y}]`;
+        if (inst.id === selectedInstanceId) li.classList.add('active');
+        li.onclick = () => selectInstance(inst.id);
+        list.appendChild(li);
+    });
+}
+
+function renderPropertiesPanel() {
+    const panel = document.getElementById('prop-panel-content');
+    if (!selectedInstanceId) {
+        panel.innerHTML = '<p class="hint">Select an instance to view properties.</p>';
+        return;
+    }
+
+    const inst = placedInstances.find(i => i.id === selectedInstanceId);
+    if (!inst) return;
+
+    let html = `
+        <div class="form-group">
+            <label>X:</label>
+            <input type="number" value="${inst.x}" onchange="updateInstanceProp(${inst.id}, 'x', this.value)">
+        </div>
+        <div class="form-group">
+            <label>Y:</label>
+            <input type="number" value="${inst.y}" onchange="updateInstanceProp(${inst.id}, 'y', this.value)">
+        </div>
+    `;
+
+    if (inst.type === 'differential') {
+        html += `
+            <div class="form-group">
+                <label>Pitch:</label>
+                <input type="number" value="${inst.properties.pitch}" onchange="updateInstanceProp(${inst.id}, 'pitch', this.value)">
+            </div>
+            <div class="form-group">
+                <label>Orientation:</label>
+                <select onchange="updateInstanceProp(${inst.id}, 'orientation', this.value)">
+                    <option value="horizontal" ${inst.properties.orientation === 'horizontal' ? 'selected' : ''}>Horizontal</option>
+                    <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
+                </select>
+            </div>
+        `;
+    }
+
+    html += `<button onclick="deleteInstance(${inst.id})" style="margin-top: 10px; background-color: #a00;">Delete</button>`;
+
+    panel.innerHTML = html;
+}
+
+function updateInstanceProp(id, key, value) {
+    const inst = placedInstances.find(i => i.id === id);
+    if (!inst) return;
+
+    if (key === 'x' || key === 'y') {
+        inst[key] = parseFloat(value);
+    } else {
+        inst.properties[key] = key === 'pitch' ? parseFloat(value) : value;
+    }
+    drawPlacementCanvas();
+    renderPlacedList();
+}
+
+function deleteInstance(id) {
+    placedInstances = placedInstances.filter(i => i.id !== id);
+    selectedInstanceId = null;
+    drawPlacementCanvas();
+    renderPlacedList();
+    renderPropertiesPanel();
+}
+
+function updateGrid() {
+    const val = parseFloat(document.getElementById('grid-spacing').value);
+    if (val > 0) {
+        canvasState.gridSpacing = val;
+        drawPlacementCanvas();
+    }
+}
+
+function zoomCanvas(factor) {
+    canvasState.scale *= factor;
+    drawPlacementCanvas();
+}
+
+function fitCanvas() {
+    // Simple reset for now
+    canvasState.scale = 10;
+    canvasState.offsetX = canvas.width / 2;
+    canvasState.offsetY = canvas.height / 2;
+    drawPlacementCanvas();
+}
