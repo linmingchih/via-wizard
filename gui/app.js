@@ -626,6 +626,13 @@ function initCanvas() {
     canvas.addEventListener('mouseup', handleCanvasMouseUp);
     canvas.addEventListener('wheel', handleCanvasWheel);
 
+    // Keyboard events
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' && selectedInstanceId) {
+            deleteInstance(selectedInstanceId);
+        }
+    });
+
     canvasInitialized = true;
 }
 
@@ -642,7 +649,7 @@ function drawPlacementCanvas() {
     // Transform
     ctx.save();
     ctx.translate(canvasState.offsetX, canvasState.offsetY);
-    ctx.scale(canvasState.scale, canvasState.scale);
+    ctx.scale(canvasState.scale, -canvasState.scale);
 
     // Draw Grid
     drawGrid();
@@ -696,7 +703,9 @@ function drawInstance(inst) {
         });
     }
 
-    const color = inst.id === selectedInstanceId ? '#007acc' : '#b87333';
+    let color = '#b87333';
+    if (inst.type === 'gnd') color = '#998877'; // Desaturated for GND
+    if (inst.id === selectedInstanceId) color = '#007acc';
 
     if (inst.type === 'single' || inst.type === 'gnd') {
         drawVia(inst.x, inst.y, diameter, color, p.holeDiameter);
@@ -742,7 +751,7 @@ function drawVia(x, y, diameter, color, holeDiameter) {
 function handleCanvasMouseDown(e) {
     const rect = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
-    const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+    const mouseY = -(e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
 
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
         // Pan
@@ -771,7 +780,7 @@ function handleCanvasMouseDown(e) {
 function handleCanvasMouseMove(e) {
     const rect = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
-    const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+    const mouseY = -(e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
 
     if (canvasState.isDragging) {
         if (canvasState.dragType === 'pan') {
@@ -815,7 +824,7 @@ function handleCanvasMouseUp(e) {
     // Reset cursor based on position
     const rect = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
-    const mouseY = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+    const mouseY = -(e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
     const hoveredId = checkSelection(mouseX, mouseY);
     canvas.style.cursor = hoveredId ? 'grab' : 'crosshair';
 }
@@ -914,13 +923,15 @@ function renderPropertiesPanel() {
     if (!inst) return;
 
     let html = `
-        <div class="form-group">
-            <label>X:</label>
-            <input type="number" value="${inst.x}" onchange="updateInstanceProp(${inst.id}, 'x', this.value)">
-        </div>
-        <div class="form-group">
-            <label>Y:</label>
-            <input type="number" value="${inst.y}" onchange="updateInstanceProp(${inst.id}, 'y', this.value)">
+        <div style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1;">
+                <label>X:</label>
+                <input type="number" value="${inst.x}" onchange="updateInstanceProp(${inst.id}, 'x', this.value)">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Y:</label>
+                <input type="number" value="${inst.y}" onchange="updateInstanceProp(${inst.id}, 'y', this.value)">
+            </div>
         </div>
     `;
 
@@ -940,7 +951,7 @@ function renderPropertiesPanel() {
         `;
     }
 
-    html += `<button onclick="deleteInstance(${inst.id})" style="margin-top: 10px; background-color: #a00;">Delete</button>`;
+
 
     panel.innerHTML = html;
 }
@@ -980,9 +991,66 @@ function zoomCanvas(factor) {
 }
 
 function fitCanvas() {
-    // Simple reset for now
-    canvasState.scale = 10;
-    canvasState.offsetX = canvas.width / 2;
-    canvasState.offsetY = canvas.height / 2;
+    if (placedInstances.length === 0) {
+        // Default reset if empty
+        canvasState.scale = 10;
+        canvasState.offsetX = canvas.width / 2;
+        canvasState.offsetY = canvas.height / 2;
+        drawPlacementCanvas();
+        return;
+    }
+
+    // Calculate bounding box
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    placedInstances.forEach(inst => {
+        if (inst.x < minX) minX = inst.x;
+        if (inst.x > maxX) maxX = inst.x;
+        if (inst.y < minY) minY = inst.y;
+        if (inst.y > maxY) maxY = inst.y;
+    });
+
+    // Add some padding (e.g., via radius)
+    const padding = 20; // units
+    minX -= padding;
+    maxX += padding;
+    minY -= padding;
+    maxY += padding;
+
+    const bboxWidth = maxX - minX;
+    const bboxHeight = maxY - minY;
+
+    if (bboxWidth === 0 || bboxHeight === 0) {
+        canvasState.scale = 10;
+        canvasState.offsetX = canvas.width / 2 - minX * 10;
+        canvasState.offsetY = canvas.height / 2 + minY * 10;
+        drawPlacementCanvas();
+        return;
+    }
+
+    // Calculate scale to fit
+    // Target is 80% of canvas size
+    const targetW = canvas.width * 0.8;
+    const targetH = canvas.height * 0.8;
+
+    const scaleX = targetW / bboxWidth;
+    const scaleY = targetH / bboxHeight;
+    const scale = Math.min(scaleX, scaleY);
+
+    // Center point
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    canvasState.scale = scale;
+    // Offset calculation:
+    // ScreenX = offsetX + WorldX * scale
+    // We want ScreenX = CanvasWidth/2 when WorldX = centerX
+    // CanvasWidth/2 = offsetX + centerX * scale => offsetX = CanvasWidth/2 - centerX * scale
+    canvasState.offsetX = canvas.width / 2 - centerX * scale;
+
+    // ScreenY = offsetY - WorldY * scale (due to flipped Y)
+    // We want ScreenY = CanvasHeight/2 when WorldY = centerY
+    // CanvasHeight/2 = offsetY - centerY * scale => offsetY = CanvasHeight/2 + centerY * scale
+    canvasState.offsetY = canvas.height / 2 + centerY * scale;
+
     drawPlacementCanvas();
 }
