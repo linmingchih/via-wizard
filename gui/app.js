@@ -926,11 +926,11 @@ function renderPropertiesPanel() {
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;">
                 <label>X:</label>
-                <input type="number" value="${inst.x}" onchange="updateInstanceProp(${inst.id}, 'x', this.value)">
+                <input type="number" value="${inst.x}" onchange="updateInstanceProp(${inst.id}, 'x', this.value)" style="width: 50%;">
             </div>
             <div class="form-group" style="flex: 1;">
                 <label>Y:</label>
-                <input type="number" value="${inst.y}" onchange="updateInstanceProp(${inst.id}, 'y', this.value)">
+                <input type="number" value="${inst.y}" onchange="updateInstanceProp(${inst.id}, 'y', this.value)" style="width: 50%;">
             </div>
         </div>
     `;
