@@ -888,8 +888,7 @@ function placeInstance(x, y) {
     }
 
     placedInstances.push(newInst);
-    drawPlacementCanvas();
-    renderPlacedList();
+    selectInstance(newInst.id);
 }
 
 function selectInstance(id) {
