@@ -718,8 +718,8 @@ function drawInstance(inst) {
         const dx = isVert ? 0 : pitch / 2;
         const dy = isVert ? pitch / 2 : 0;
 
-        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter);
-        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter);
+        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
+        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
 
         // Link line
         ctx.beginPath();
@@ -884,13 +884,29 @@ function handleCanvasDoubleClick(e) {
     const clickedId = checkSelection(mouseX, mouseY);
     if (clickedId) {
         const inst = placedInstances.find(i => i.id === clickedId);
-        if (inst && inst.type === 'single') {
-            if (typeof inst.properties.arrowDirection === 'undefined') {
-                inst.properties.arrowDirection = 0;
+        if (inst) {
+            if (inst.type === 'single') {
+                if (typeof inst.properties.arrowDirection === 'undefined') {
+                    inst.properties.arrowDirection = 0;
+                }
+                // Rotate clockwise
+                inst.properties.arrowDirection = (inst.properties.arrowDirection + 1) % 4;
+                drawPlacementCanvas();
+            } else if (inst.type === 'differential') {
+                if (typeof inst.properties.arrowDirection === 'undefined') {
+                    inst.properties.arrowDirection = (inst.properties.orientation === 'vertical') ? 1 : 0;
+                }
+
+                // Toggle between perpendicular directions
+                // Horizontal pair (link horizontal) -> Up(0) / Down(2)
+                // Vertical pair (link vertical) -> Right(1) / Left(3)
+                if (inst.properties.orientation === 'vertical') {
+                    inst.properties.arrowDirection = (inst.properties.arrowDirection === 1) ? 3 : 1;
+                } else {
+                    inst.properties.arrowDirection = (inst.properties.arrowDirection === 0) ? 2 : 0;
+                }
+                drawPlacementCanvas();
             }
-            // Rotate clockwise
-            inst.properties.arrowDirection = (inst.properties.arrowDirection + 1) % 4;
-            drawPlacementCanvas();
         }
     }
 }
@@ -950,7 +966,10 @@ function placeInstance(x, y) {
 
     if (placementMode === 'differential') {
         newInst.properties.pitch = parseFloat(document.getElementById('diff-pitch').value);
-        newInst.properties.orientation = document.querySelector('input[name="diff-orient"]:checked').value;
+        const orient = document.querySelector('input[name="diff-orient"]:checked').value;
+        newInst.properties.orientation = orient;
+        // Default arrow: Vertical pair -> Right(1), Horizontal pair -> Up(0)
+        newInst.properties.arrowDirection = (orient === 'vertical') ? 1 : 0;
     } else if (placementMode === 'single') {
         newInst.properties.arrowDirection = 0; // Default Up
     }
@@ -1031,6 +1050,11 @@ function updateInstanceProp(id, key, value) {
         inst[key] = parseFloat(value);
     } else {
         inst.properties[key] = key === 'pitch' ? parseFloat(value) : value;
+
+        // Reset arrow direction if orientation changes
+        if (key === 'orientation') {
+            inst.properties.arrowDirection = (value === 'vertical') ? 1 : 0;
+        }
     }
     drawPlacementCanvas();
     renderPlacedList();
