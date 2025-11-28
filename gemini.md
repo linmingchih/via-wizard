@@ -39,4 +39,32 @@
 - the setting can be write to xml file with the same schema as stackup.xml, if the dk and df does not exist, create <Material></Material> as shown in stackup.xml
 - IsReference is added to the xml file.
 
+### Placement Design Tab
+
+#### left panel
+- shows defined padstacks
+- single/differential/gnd radio buttons
+- if differential, shows pitch input field and horizontal/vertical radio buttons, it will group two vias as a pair for placement.
+
+
+#### center panel
+- grid layout, spacing is default 5mil, user can change it. the center is (0,0), x axis and y axis are thicker than others.
+- user can zoom in/out, pan the canvas, a button to fit all in the canvas
+- user can place single/differential vias (center of two vias position link line) on grid
+- there are two arrows on single vias and can be dragged to point to N/W/W/S, one arrow is into via, the other is out of via
+- there are two arrows on differential vias and can be dragged to rotate perpendicularly to the link line, one is into via, the other is out of via, the arrow has layer property to select the layer
+- vias can be dragged to move on grids
+- vias can be deleted
+- vias can be selected and show the properties in the right property panel
+- differential vias are labeled in different color two centric circles, the outside is the diameter of the via and the inside is the hole diameter.
+- although placement is on grid with drag and drop, the via position can be fine tuned with input position field. the position of vias will be aligned to the input field. it means the vias can be off the grid
+
+#### right panel
+- placed single/differential instances panel above
+- property panel of the selected via instance below
+- change property of the selected via instance will update the via on the canvas
+
+
+
+
 
