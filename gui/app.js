@@ -1046,8 +1046,15 @@ function placeInstance(x, y) {
         newInst.properties.orientation = orient;
         // Default arrow: Vertical pair -> Right(1), Horizontal pair -> Up(0)
         newInst.properties.arrowDirection = (orient === 'vertical') ? 1 : 0;
+        newInst.properties.width = 5;
+        newInst.properties.spacing = 5;
+        newInst.properties.feedIn = "";
+        newInst.properties.feedOut = "";
     } else if (placementMode === 'single') {
         newInst.properties.arrowDirection = 0; // Default Up
+        newInst.properties.width = 15;
+        newInst.properties.feedIn = "";
+        newInst.properties.feedOut = "";
     }
 
     placedInstances.push(newInst);
@@ -1098,6 +1105,21 @@ function renderPropertiesPanel() {
     `;
 
     if (inst.type === 'differential') {
+        const signalLayers = currentStackup.filter(l => !l.isReference).map(l => l.name);
+        const createLayerSelect = (prop, label) => {
+            const val = inst.properties[prop] || "";
+            const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
+            return `
+               <div class="form-group">
+                   <label>${label}:</label>
+                   <select onchange="updateInstanceProp(${inst.id}, '${prop}', this.value)">
+                       <option value="">-- Select --</option>
+                       ${opts}
+                   </select>
+               </div>
+            `;
+        };
+
         html += `
             <div class="form-group">
                 <label>Pitch:</label>
@@ -1110,6 +1132,42 @@ function renderPropertiesPanel() {
                     <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
                 </select>
             </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Width:</label>
+                    <input type="number" value="${inst.properties.width !== undefined ? inst.properties.width : 5}" onchange="updateInstanceProp(${inst.id}, 'width', this.value)" style="width: 50%;">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Spacing:</label>
+                    <input type="number" value="${inst.properties.spacing !== undefined ? inst.properties.spacing : 5}" onchange="updateInstanceProp(${inst.id}, 'spacing', this.value)" style="width: 50%;">
+                </div>
+            </div>
+            ${createLayerSelect('feedIn', 'Feed In')}
+            ${createLayerSelect('feedOut', 'Feed Out')}
+        `;
+    } else if (inst.type === 'single') {
+        const signalLayers = currentStackup.filter(l => !l.isReference).map(l => l.name);
+        const createLayerSelect = (prop, label) => {
+            const val = inst.properties[prop] || "";
+            const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
+            return `
+               <div class="form-group">
+                   <label>${label}:</label>
+                   <select onchange="updateInstanceProp(${inst.id}, '${prop}', this.value)">
+                       <option value="">-- Select --</option>
+                       ${opts}
+                   </select>
+               </div>
+            `;
+        };
+
+        html += `
+            <div class="form-group">
+                <label>Width (mil):</label>
+                <input type="number" value="${inst.properties.width !== undefined ? inst.properties.width : 15}" onchange="updateInstanceProp(${inst.id}, 'width', this.value)">
+            </div>
+            ${createLayerSelect('feedIn', 'Feed In')}
+            ${createLayerSelect('feedOut', 'Feed Out')}
         `;
     }
 
@@ -1125,7 +1183,11 @@ function updateInstanceProp(id, key, value) {
     if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        inst.properties[key] = key === 'pitch' ? parseFloat(value) : value;
+        if (key === 'pitch' || key === 'width' || key === 'spacing') {
+            inst.properties[key] = parseFloat(value);
+        } else {
+            inst.properties[key] = value;
+        }
 
         // Reset arrow direction if orientation changes
         if (key === 'orientation') {
