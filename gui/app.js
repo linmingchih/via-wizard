@@ -4,13 +4,21 @@ let currentStackup = [];
 let currentUnits = 'mm';
 
 // Tab Switching Logic
+// Tab Switching Logic
 function openTab(tabId) {
     const panes = document.querySelectorAll('.tab-pane');
     panes.forEach(pane => pane.classList.remove('active'));
     const buttons = document.querySelectorAll('.tab-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-    const activeBtn = document.querySelector(`.tab-btn[onclick="openTab('${tabId}')"]`);
+
+    const targetPane = document.getElementById(tabId);
+    if (targetPane) {
+        targetPane.classList.add('active');
+    }
+
+    // Find button by text content or index since onclick attribute matching can be flaky
+    // Or simpler: pass 'this' to the function
+    const activeBtn = Array.from(buttons).find(btn => btn.getAttribute('onclick').includes(tabId));
     if (activeBtn) activeBtn.classList.add('active');
 
     // Redraw visualizer if switching to Stackup tab
@@ -769,6 +777,25 @@ function drawInstance(inst, boardW, boardH) {
         ctx.lineTo(edgeX, edgeY);
         ctx.stroke();
         ctx.globalAlpha = 1.0; // Reset alpha
+
+        // Draw Layer Name
+        const layerName = isFeedIn ? inst.properties.feedIn : inst.properties.feedOut;
+        if (layerName) {
+            ctx.save();
+            ctx.fillStyle = '#fff';
+            const fontSize = 12 / canvasState.scale;
+            ctx.font = `${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const midX = (x + edgeX) / 2;
+            const midY = (y + edgeY) / 2;
+
+            ctx.translate(midX, midY);
+            ctx.scale(1, -1); // Unflip Y
+            ctx.fillText(layerName, 0, 0);
+            ctx.restore();
+        }
     };
 
     if (inst.type === 'single' || inst.type === 'gnd') {
@@ -814,8 +841,8 @@ function drawInstance(inst, boardW, boardH) {
             // Determine Vias and Traces based on direction
             // We sort vias and traces along the "Lateral" axis
             let vias = [v1, v2];
-            let trace1, trace2; // Trace start/end points at edge
-            let knee1, knee2;   // Dogleg points
+            let lblX = inst.x;
+            let lblY = inst.y;
 
             // Logic for each direction
             if (arrowDir === 0) { // Up (Signal +Y)
@@ -824,6 +851,7 @@ function drawInstance(inst, boardW, boardH) {
                 const t1x = inst.x - tracePitch / 2;
                 const t2x = inst.x + tracePitch / 2;
                 const edgeY = isFeedIn ? -boardH / 2 : boardH / 2;
+                lblY = (inst.y + edgeY) / 2;
 
                 if (isFeedIn) { // From Bottom
                     const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
@@ -842,6 +870,7 @@ function drawInstance(inst, boardW, boardH) {
                 const t1y = inst.y - tracePitch / 2;
                 const t2y = inst.y + tracePitch / 2;
                 const edgeX = isFeedIn ? -boardW / 2 : boardW / 2;
+                lblX = (inst.x + edgeX) / 2;
 
                 if (isFeedIn) { // From Left
                     const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
@@ -860,6 +889,7 @@ function drawInstance(inst, boardW, boardH) {
                 const t1x = inst.x - tracePitch / 2;
                 const t2x = inst.x + tracePitch / 2;
                 const edgeY = isFeedIn ? boardH / 2 : -boardH / 2;
+                lblY = (inst.y + edgeY) / 2;
 
                 if (isFeedIn) { // From Top
                     const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
@@ -878,6 +908,7 @@ function drawInstance(inst, boardW, boardH) {
                 const t1y = inst.y - tracePitch / 2;
                 const t2y = inst.y + tracePitch / 2;
                 const edgeX = isFeedIn ? boardW / 2 : -boardW / 2;
+                lblX = (inst.x + edgeX) / 2;
 
                 if (isFeedIn) { // From Right
                     const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
@@ -894,6 +925,22 @@ function drawInstance(inst, boardW, boardH) {
 
             ctx.stroke();
             ctx.globalAlpha = 1.0;
+
+            // Draw Layer Name
+            const layerName = isFeedIn ? inst.properties.feedIn : inst.properties.feedOut;
+            if (layerName) {
+                ctx.save();
+                ctx.fillStyle = '#fff';
+                const fontSize = 12 / canvasState.scale;
+                ctx.font = `${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                ctx.translate(lblX, lblY);
+                ctx.scale(1, -1);
+                ctx.fillText(layerName, 0, 0);
+                ctx.restore();
+            }
         };
 
         drawDiffFeeds(true);  // Feed In
