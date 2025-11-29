@@ -266,7 +266,7 @@ function render2DView() {
         rect.setAttribute("height", h);
 
         if (layer.isReference) {
-            rect.setAttribute("fill", "#ff4d4d"); // Red for Reference
+            rect.setAttribute("fill", "#0000ff"); // Blue for Reference
         } else if (layer.type === 'Conductor') {
             rect.setAttribute("fill", "#b87333"); // Copper
         } else {
