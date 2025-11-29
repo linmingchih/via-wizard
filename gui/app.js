@@ -789,12 +789,115 @@ function drawInstance(inst, boardW, boardH) {
         const dx = isVert ? 0 : pitch / 2;
         const dy = isVert ? pitch / 2 : 0;
 
-        // Draw Feed Lines for both vias
-        // Assuming same direction for both
-        drawFeedLine(inst.x - dx, inst.y - dy, inst.properties.feedInWidth, inst.properties.arrowDirection, true);
-        drawFeedLine(inst.x + dx, inst.y + dy, inst.properties.feedInWidth, inst.properties.arrowDirection, true);
-        drawFeedLine(inst.x - dx, inst.y - dy, inst.properties.feedOutWidth, inst.properties.arrowDirection, false);
-        drawFeedLine(inst.x + dx, inst.y + dy, inst.properties.feedOutWidth, inst.properties.arrowDirection, false);
+        const v1 = { x: inst.x - dx, y: inst.y - dy };
+        const v2 = { x: inst.x + dx, y: inst.y + dy };
+
+        // Helper to draw differential feeds with 45-degree dogleg
+        const drawDiffFeeds = (isFeedIn) => {
+            const width = isFeedIn ? inst.properties.feedInWidth : inst.properties.feedOutWidth;
+            const spacing = isFeedIn ? inst.properties.feedInSpacing : inst.properties.feedOutSpacing;
+            if (!width || width <= 0) return;
+
+            const tracePitch = width + spacing;
+            const arrowDir = inst.properties.arrowDirection || 0; // 0=Up, 1=Right, 2=Down, 3=Left
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = width;
+            ctx.globalAlpha = 0.5;
+
+            const drawPoly = (pts) => {
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            };
+
+            // Determine Vias and Traces based on direction
+            // We sort vias and traces along the "Lateral" axis
+            let vias = [v1, v2];
+            let trace1, trace2; // Trace start/end points at edge
+            let knee1, knee2;   // Dogleg points
+
+            // Logic for each direction
+            if (arrowDir === 0) { // Up (Signal +Y)
+                // Lateral: X
+                vias.sort((a, b) => a.x - b.x); // Left, Right
+                const t1x = inst.x - tracePitch / 2;
+                const t2x = inst.x + tracePitch / 2;
+                const edgeY = isFeedIn ? -boardH / 2 : boardH / 2;
+
+                if (isFeedIn) { // From Bottom
+                    const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
+                    drawPoly([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
+                    drawPoly([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else { // To Top
+                    const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
+                    drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
+                    drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
+                }
+            } else if (arrowDir === 1) { // Right (Signal +X)
+                // Lateral: Y
+                vias.sort((a, b) => a.y - b.y); // Bottom, Top
+                const t1y = inst.y - tracePitch / 2;
+                const t2y = inst.y + tracePitch / 2;
+                const edgeX = isFeedIn ? -boardW / 2 : boardW / 2;
+
+                if (isFeedIn) { // From Left
+                    const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
+                    drawPoly([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
+                    drawPoly([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else { // To Right
+                    const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
+                    drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
+                    drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
+                }
+            } else if (arrowDir === 2) { // Down (Signal -Y)
+                // Lateral: X
+                vias.sort((a, b) => a.x - b.x); // Left, Right
+                const t1x = inst.x - tracePitch / 2;
+                const t2x = inst.x + tracePitch / 2;
+                const edgeY = isFeedIn ? boardH / 2 : -boardH / 2;
+
+                if (isFeedIn) { // From Top
+                    const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
+                    drawPoly([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
+                    drawPoly([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else { // To Bottom
+                    const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
+                    drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
+                    drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
+                }
+            } else if (arrowDir === 3) { // Left (Signal -X)
+                // Lateral: Y
+                vias.sort((a, b) => a.y - b.y); // Bottom, Top
+                const t1y = inst.y - tracePitch / 2;
+                const t2y = inst.y + tracePitch / 2;
+                const edgeX = isFeedIn ? boardW / 2 : -boardW / 2;
+
+                if (isFeedIn) { // From Right
+                    const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
+                    drawPoly([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
+                    drawPoly([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else { // To Left
+                    const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
+                    drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
+                    drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
+                }
+            }
+
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        };
+
+        drawDiffFeeds(true);  // Feed In
+        drawDiffFeeds(false); // Feed Out
 
         // Draw Oblong Antipad
         if (antipadDiameter && antipadDiameter > 0) {
