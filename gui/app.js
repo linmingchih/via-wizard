@@ -1328,12 +1328,12 @@ function renderPropertiesPanel() {
     `;
 
     if (inst.type === 'differential') {
-        const signalLayers = currentStackup.filter(l => l.type === 'Conductor' && !l.isReference).map(l => l.name);
+        const conductorLayers = currentStackup.filter(l => l.type === 'Conductor');
         const createLayerSelectWithWidthAndSpacing = (prop, label, widthProp, spacingProp) => {
             const val = inst.properties[prop] || "";
             const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 5;
             const spacingVal = inst.properties[spacingProp] !== undefined ? inst.properties[spacingProp] : 5;
-            const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
+            const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
             return `
                <div class="form-group">
                    <label>${label}:</label>
@@ -1371,11 +1371,11 @@ function renderPropertiesPanel() {
             ${createLayerSelectWithWidthAndSpacing('feedOut', 'Feed Out', 'feedOutWidth', 'feedOutSpacing')}
         `;
     } else if (inst.type === 'single') {
-        const signalLayers = currentStackup.filter(l => l.type === 'Conductor' && !l.isReference).map(l => l.name);
+        const conductorLayers = currentStackup.filter(l => l.type === 'Conductor');
         const createLayerSelectWithWidth = (prop, label, widthProp) => {
             const val = inst.properties[prop] || "";
             const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 15;
-            const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
+            const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
             return `
                <div class="form-group">
                    <label>${label}:</label>
