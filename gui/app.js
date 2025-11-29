@@ -769,7 +769,8 @@ function drawInstance(inst) {
     if (inst.id === selectedInstanceId) color = '#007acc';
 
     if (inst.type === 'single' || inst.type === 'gnd') {
-        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection, antipadDiameter);
+        const effectiveAntipad = (inst.type === 'gnd') ? 0 : antipadDiameter;
+        drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection, effectiveAntipad);
     } else if (inst.type === 'differential') {
         // Draw two vias
         const pitch = inst.properties.pitch || 1.0;
@@ -778,8 +779,36 @@ function drawInstance(inst) {
         const dx = isVert ? 0 : pitch / 2;
         const dy = isVert ? pitch / 2 : 0;
 
-        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, antipadDiameter);
-        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, antipadDiameter);
+        // Draw Oblong Antipad
+        if (antipadDiameter && antipadDiameter > 0) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#aaa';
+            ctx.setLineDash([4, 2]); // Dashed
+            ctx.lineWidth = 1 / canvasState.scale;
+
+            const r = antipadDiameter / 2;
+
+            if (isVert) {
+                // Vertical orientation
+                // Top cap
+                ctx.arc(inst.x, inst.y + dy, r, 0, Math.PI, false);
+                // Bottom cap
+                ctx.arc(inst.x, inst.y - dy, r, Math.PI, 0, false);
+            } else {
+                // Horizontal orientation
+                // Left cap
+                ctx.arc(inst.x - dx, inst.y, r, Math.PI / 2, 3 * Math.PI / 2, false);
+                // Right cap
+                ctx.arc(inst.x + dx, inst.y, r, -Math.PI / 2, Math.PI / 2, false);
+            }
+
+            ctx.closePath();
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, 0);
+        drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, 0);
 
         // Link line
         ctx.beginPath();
