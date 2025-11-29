@@ -265,11 +265,13 @@ function render2DView() {
         rect.setAttribute("width", "80%");
         rect.setAttribute("height", h);
 
-        if (layer.type === 'Conductor') {
+        if (layer.isReference) {
+            rect.setAttribute("fill", "#ff4d4d"); // Red for Reference
+        } else if (layer.type === 'Conductor') {
             rect.setAttribute("fill", "#b87333"); // Copper
         } else {
-            rect.setAttribute("fill", "#4a6fa5"); // Dielectric
-            rect.setAttribute("opacity", "0.5");
+            rect.setAttribute("fill", "#4caf50"); // Green for Dielectric
+            rect.setAttribute("opacity", "0.6");
         }
         rect.setAttribute("stroke", "#666");
         rect.setAttribute("stroke-width", "1");
