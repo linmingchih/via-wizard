@@ -745,7 +745,7 @@ function drawInstance(inst, boardW, boardH) {
         if (!width || width <= 0 || !boardW || !boardH) return;
 
         ctx.beginPath();
-        ctx.strokeStyle = '#00ff00'; // Green line for feed
+        ctx.strokeStyle = '#cd7f32'; // Bronze color for feed
         ctx.lineWidth = width; // Use actual width (mil)
         ctx.globalAlpha = 0.5; // Semi-transparent
 
@@ -829,7 +829,7 @@ function drawInstance(inst, boardW, boardH) {
             const arrowDir = inst.properties.arrowDirection || 0; // 0=Up, 1=Right, 2=Down, 3=Left
 
             ctx.beginPath();
-            ctx.strokeStyle = '#00ff00';
+            ctx.strokeStyle = '#cd7f32'; // Bronze color for feed
             ctx.lineWidth = width;
             ctx.globalAlpha = 0.5;
 
