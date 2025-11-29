@@ -349,10 +349,18 @@ function addPadstack() {
     const newPadstack = {
         name: name,
         holeDiameter: 10,
+        padSize: 18,
+        antipadSize: 28,
         material: "Copper",
         plating: 100,
-        startLayer: currentStackup.length > 0 ? currentStackup[0].name : "",
-        stopLayer: currentStackup.length > 0 ? currentStackup[currentStackup.length - 1].name : "",
+        startLayer: (() => {
+            const conductors = currentStackup.filter(l => l.type === 'Conductor');
+            return conductors.length > 0 ? conductors[0].name : "";
+        })(),
+        stopLayer: (() => {
+            const conductors = currentStackup.filter(l => l.type === 'Conductor');
+            return conductors.length > 0 ? conductors[conductors.length - 1].name : "";
+        })(),
         backdrill: {
             enabled: false,
             diameter: 0.3,
@@ -361,7 +369,7 @@ function addPadstack() {
             stub: 0,
             depth: 0
         },
-        layers: {} // Map layerName -> {padSize, antipadSize}
+        layers: {} // Map layerName -> {padSize, antipadSize} (kept for compatibility or future use)
     };
 
     padstacks.push(newPadstack);
@@ -398,7 +406,7 @@ function renderPadstackList() {
 function renderPadstackForm() {
     if (currentPadstackIndex === -1) {
         // Disable inputs or clear them
-        const inputs = ['pad-name', 'pad-hole-diam', 'pad-material', 'pad-plating', 'pad-start-layer', 'pad-stop-layer'];
+        const inputs = ['pad-name', 'pad-hole-diam', 'pad-size', 'pad-antipad-size', 'pad-material', 'pad-plating', 'pad-start-layer', 'pad-stop-layer'];
         inputs.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
@@ -411,6 +419,8 @@ function renderPadstackForm() {
 
     setVal('pad-name', p.name);
     setVal('pad-hole-diam', p.holeDiameter);
+    setVal('pad-size', p.padSize);
+    setVal('pad-antipad-size', p.antipadSize);
     setVal('pad-material', p.material);
     setVal('pad-plating', p.plating);
 
@@ -475,9 +485,11 @@ function renderPadstackForm() {
 function updatePadstackProperty(key, value) {
     if (currentPadstackIndex === -1) return;
     const p = padstacks[currentPadstackIndex];
+    if (key === 'holeDiameter' || key === 'padSize' || key === 'antipadSize' || key === 'plating') {
+        value = parseFloat(value);
+    }
     p[key] = value;
     if (key === 'name') renderPadstackList();
-    renderPadstackLayersTable(); // Re-render table as hole diameter might affect defaults
 }
 
 function toggleBackdrill(enabled) {
@@ -517,29 +529,7 @@ function updateBackdrillProperty(key, value) {
 }
 
 function renderPadstackLayersTable() {
-    const tbody = document.querySelector('#padstack-layers-table tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    if (currentPadstackIndex === -1) return;
-    const p = padstacks[currentPadstackIndex];
-
-    currentStackup.forEach(layer => {
-        if (layer.type !== 'Conductor') return; // Only show conductor layers
-
-        const tr = document.createElement('tr');
-
-        // Default sizes if not set
-        const padSize = p.layers[layer.name]?.padSize || 20;
-        const antipadSize = p.layers[layer.name]?.antipadSize || 30;
-
-        tr.innerHTML = `
-            <td>${layer.name}</td>
-            <td><input type="number" value="${padSize}" onchange="updatePadstackLayer('${layer.name}', 'padSize', this.value)"></td>
-            <td><input type="number" value="${antipadSize}" onchange="updatePadstackLayer('${layer.name}', 'antipadSize', this.value)"></td>
-        `;
-        tbody.appendChild(tr);
-    });
+    // Deprecated: Layer definition table removed from UI
 }
 
 function updatePadstackLayer(layerName, key, value) {
@@ -720,49 +710,11 @@ function drawInstance(inst) {
     const p = padstacks[pIndex];
 
     // Calculate max pad size
-    let diameter = p.holeDiameter || 0;
-
-    if (currentStackup && currentStackup.length > 0) {
-        currentStackup.forEach(layer => {
-            if (layer.type === 'Conductor') {
-                // Use stored value or default 20
-                const layerPadSize = (p.layers && p.layers[layer.name] && p.layers[layer.name].padSize)
-                    ? p.layers[layer.name].padSize
-                    : 20;
-                if (layerPadSize > diameter) {
-                    diameter = layerPadSize;
-                }
-            }
-        });
-    } else if (p.layers) {
-        // Fallback if currentStackup is empty (shouldn't happen in placement tab usually)
-        Object.values(p.layers).forEach(layer => {
-            if (layer.padSize && layer.padSize > diameter) {
-                diameter = layer.padSize;
-            }
-        });
-    }
+    let diameter = p.padSize || 20;
+    if (p.holeDiameter > diameter) diameter = p.holeDiameter;
 
     // Calculate max antipad size
-    let antipadDiameter = 0;
-    if (currentStackup && currentStackup.length > 0) {
-        currentStackup.forEach(layer => {
-            if (layer.type === 'Conductor') {
-                const layerAntipadSize = (p.layers && p.layers[layer.name] && p.layers[layer.name].antipadSize)
-                    ? p.layers[layer.name].antipadSize
-                    : 30; // Default 30
-                if (layerAntipadSize > antipadDiameter) {
-                    antipadDiameter = layerAntipadSize;
-                }
-            }
-        });
-    } else if (p.layers) {
-        Object.values(p.layers).forEach(layer => {
-            if (layer.antipadSize && layer.antipadSize > antipadDiameter) {
-                antipadDiameter = layer.antipadSize;
-            }
-        });
-    }
+    let antipadDiameter = p.antipadSize || 30;
 
     let color = '#b87333';
     if (inst.type === 'gnd') color = '#998877'; // Desaturated for GND
@@ -1031,12 +983,7 @@ function checkSelection(x, y) {
         const pIndex = inst.padstackIndex;
         if (pIndex >= 0 && pIndex < padstacks.length) {
             const p = padstacks[pIndex];
-            let maxD = p.holeDiameter || 0;
-            if (p.layers) {
-                Object.values(p.layers).forEach(l => {
-                    if (l.padSize && l.padSize > maxD) maxD = l.padSize;
-                });
-            }
+            let maxD = p.padSize || p.holeDiameter || 0;
             if (maxD > 0) radius = maxD / 2;
         }
 
