@@ -680,7 +680,7 @@ function drawPlacementCanvas() {
 
     // Draw Instances
     placedInstances.forEach(inst => {
-        drawInstance(inst);
+        drawInstance(inst, boardW, boardH);
     });
 
     ctx.restore();
@@ -704,7 +704,7 @@ function drawGrid() {
     ctx.stroke();
 }
 
-function drawInstance(inst) {
+function drawInstance(inst, boardW, boardH) {
     const pIndex = inst.padstackIndex;
     if (pIndex < 0 || pIndex >= padstacks.length) return;
     const p = padstacks[pIndex];
@@ -720,8 +720,56 @@ function drawInstance(inst) {
     if (inst.type === 'gnd') color = '#998877'; // Desaturated for GND
     if (inst.id === selectedInstanceId) color = '#007acc';
 
+    // Helper to draw feed line
+    const drawFeedLine = (x, y, width, direction) => {
+        if (!width || width <= 0 || !boardW || !boardH) return;
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#00ff00'; // Green line for feed
+        ctx.lineWidth = width; // Use actual width (mil)
+        // Note: lineWidth in canvas is in coordinate space units because we scaled the context.
+        // However, we scaled by canvasState.scale. If we want 'width' mils, we just set lineWidth = width?
+        // No, ctx.lineWidth is affected by scale. 
+        // If we want the line to be 'width' units wide in the world space, we set lineWidth = width.
+        // Since we did ctx.scale(scale, -scale), a lineWidth of 10 means 10 units in world space.
+        // So yes, ctx.lineWidth = width is correct.
+
+        ctx.lineWidth = width;
+        ctx.globalAlpha = 0.5; // Semi-transparent
+
+        let startX = x;
+        let startY = y;
+
+        // Direction: 0=Up, 1=Right, 2=Down, 3=Left
+        // Assuming "Feed In" comes FROM the direction opposite to the arrow?
+        // Or arrow points to flow?
+        // Let's assume Arrow Up (0) means signal flows Up. So it comes from Bottom.
+        // Source point is on the edge.
+
+        if (direction === 0) { // Up -> From Bottom
+            startY = -boardH / 2;
+        } else if (direction === 1) { // Right -> From Left
+            startX = -boardW / 2;
+        } else if (direction === 2) { // Down -> From Top
+            startY = boardH / 2;
+        } else if (direction === 3) { // Left -> From Right
+            startX = boardW / 2;
+        }
+
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0; // Reset alpha
+    };
+
     if (inst.type === 'single' || inst.type === 'gnd') {
         const effectiveAntipad = (inst.type === 'gnd') ? 0 : antipadDiameter;
+
+        // Draw Feed In Line
+        if (inst.type === 'single') {
+            drawFeedLine(inst.x, inst.y, inst.properties.feedInWidth, inst.properties.arrowDirection);
+        }
+
         drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection, effectiveAntipad);
     } else if (inst.type === 'differential') {
         // Draw two vias
@@ -730,6 +778,11 @@ function drawInstance(inst) {
 
         const dx = isVert ? 0 : pitch / 2;
         const dy = isVert ? pitch / 2 : 0;
+
+        // Draw Feed Lines for both vias
+        // Assuming same direction for both
+        drawFeedLine(inst.x - dx, inst.y - dy, inst.properties.feedInWidth, inst.properties.arrowDirection);
+        drawFeedLine(inst.x + dx, inst.y + dy, inst.properties.feedInWidth, inst.properties.arrowDirection);
 
         // Draw Oblong Antipad
         if (antipadDiameter && antipadDiameter > 0) {
