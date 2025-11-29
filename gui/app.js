@@ -96,7 +96,7 @@ function createNewStackup() {
     }
 }
 
-function createLayer(name, type, thickness, dk, df, cond, fill, isRef) {
+function createLayer(name, type, thickness, dk, df, cond, fill, isRef = false) {
     return {
         name: name,
         type: type,
@@ -1105,7 +1105,7 @@ function renderPropertiesPanel() {
     `;
 
     if (inst.type === 'differential') {
-        const signalLayers = currentStackup.filter(l => !l.isReference).map(l => l.name);
+        const signalLayers = currentStackup.filter(l => l.type === 'Conductor' && !l.isReference).map(l => l.name);
         const createLayerSelect = (prop, label) => {
             const val = inst.properties[prop] || "";
             const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
@@ -1146,7 +1146,7 @@ function renderPropertiesPanel() {
             ${createLayerSelect('feedOut', 'Feed Out')}
         `;
     } else if (inst.type === 'single') {
-        const signalLayers = currentStackup.filter(l => !l.isReference).map(l => l.name);
+        const signalLayers = currentStackup.filter(l => l.type === 'Conductor' && !l.isReference).map(l => l.name);
         const createLayerSelect = (prop, label) => {
             const val = inst.properties[prop] || "";
             const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
