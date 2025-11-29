@@ -1046,15 +1046,18 @@ function placeInstance(x, y) {
         newInst.properties.orientation = orient;
         // Default arrow: Vertical pair -> Right(1), Horizontal pair -> Up(0)
         newInst.properties.arrowDirection = (orient === 'vertical') ? 1 : 0;
-        newInst.properties.width = 5;
-        newInst.properties.spacing = 5;
         newInst.properties.feedIn = "";
+        newInst.properties.feedInWidth = 5;
+        newInst.properties.feedInSpacing = 5;
         newInst.properties.feedOut = "";
+        newInst.properties.feedOutWidth = 5;
+        newInst.properties.feedOutSpacing = 5;
     } else if (placementMode === 'single') {
         newInst.properties.arrowDirection = 0; // Default Up
-        newInst.properties.width = 15;
         newInst.properties.feedIn = "";
+        newInst.properties.feedInWidth = 15;
         newInst.properties.feedOut = "";
+        newInst.properties.feedOutWidth = 15;
     }
 
     placedInstances.push(newInst);
@@ -1106,8 +1109,10 @@ function renderPropertiesPanel() {
 
     if (inst.type === 'differential') {
         const signalLayers = currentStackup.filter(l => l.type === 'Conductor' && !l.isReference).map(l => l.name);
-        const createLayerSelect = (prop, label) => {
+        const createLayerSelectWithWidthAndSpacing = (prop, label, widthProp, spacingProp) => {
             const val = inst.properties[prop] || "";
+            const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 5;
+            const spacingVal = inst.properties[spacingProp] !== undefined ? inst.properties[spacingProp] : 5;
             const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
             return `
                <div class="form-group">
@@ -1116,6 +1121,16 @@ function renderPropertiesPanel() {
                        <option value="">-- Select --</option>
                        ${opts}
                    </select>
+               </div>
+               <div style="display: flex; gap: 10px;">
+                   <div class="form-group" style="flex: 1;">
+                       <label>Width:</label>
+                       <input type="number" value="${widthVal}" onchange="updateInstanceProp(${inst.id}, '${widthProp}', this.value)" style="width: 60px;">
+                   </div>
+                   <div class="form-group" style="flex: 1;">
+                       <label>Spacing:</label>
+                       <input type="number" value="${spacingVal}" onchange="updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" style="width: 60px;">
+                   </div>
                </div>
             `;
         };
@@ -1132,23 +1147,14 @@ function renderPropertiesPanel() {
                     <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
                 </select>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <div class="form-group" style="flex: 1;">
-                    <label>Width:</label>
-                    <input type="number" value="${inst.properties.width !== undefined ? inst.properties.width : 5}" onchange="updateInstanceProp(${inst.id}, 'width', this.value)" style="width: 50%;">
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>Spacing:</label>
-                    <input type="number" value="${inst.properties.spacing !== undefined ? inst.properties.spacing : 5}" onchange="updateInstanceProp(${inst.id}, 'spacing', this.value)" style="width: 50%;">
-                </div>
-            </div>
-            ${createLayerSelect('feedIn', 'Feed In')}
-            ${createLayerSelect('feedOut', 'Feed Out')}
+            ${createLayerSelectWithWidthAndSpacing('feedIn', 'Feed In', 'feedInWidth', 'feedInSpacing')}
+            ${createLayerSelectWithWidthAndSpacing('feedOut', 'Feed Out', 'feedOutWidth', 'feedOutSpacing')}
         `;
     } else if (inst.type === 'single') {
         const signalLayers = currentStackup.filter(l => l.type === 'Conductor' && !l.isReference).map(l => l.name);
-        const createLayerSelect = (prop, label) => {
+        const createLayerSelectWithWidth = (prop, label, widthProp) => {
             const val = inst.properties[prop] || "";
+            const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 15;
             const opts = signalLayers.map(name => `<option value="${name}" ${name === val ? 'selected' : ''}>${name}</option>`).join('');
             return `
                <div class="form-group">
@@ -1158,16 +1164,16 @@ function renderPropertiesPanel() {
                        ${opts}
                    </select>
                </div>
+               <div class="form-group">
+                   <label>${label} Width:</label>
+                   <input type="number" value="${widthVal}" onchange="updateInstanceProp(${inst.id}, '${widthProp}', this.value)">
+               </div>
             `;
         };
 
         html += `
-            <div class="form-group">
-                <label>Width (mil):</label>
-                <input type="number" value="${inst.properties.width !== undefined ? inst.properties.width : 15}" onchange="updateInstanceProp(${inst.id}, 'width', this.value)">
-            </div>
-            ${createLayerSelect('feedIn', 'Feed In')}
-            ${createLayerSelect('feedOut', 'Feed Out')}
+            ${createLayerSelectWithWidth('feedIn', 'Feed In', 'feedInWidth')}
+            ${createLayerSelectWithWidth('feedOut', 'Feed Out', 'feedOutWidth')}
         `;
     }
 
@@ -1183,7 +1189,7 @@ function updateInstanceProp(id, key, value) {
     if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing') {
+        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing') {
             inst.properties[key] = parseFloat(value);
         } else {
             inst.properties[key] = value;
