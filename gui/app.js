@@ -1,5 +1,5 @@
 // Global state
-let isMessageWindowVisible = true;
+let isMessageWindowVisible = false;
 let currentStackup = [];
 let currentUnits = 'mm';
 
@@ -69,7 +69,10 @@ window.onerror = function (message, source, lineno, colno, error) {
 // Stackup Logic
 function createNewStackup() {
     try {
-        const n = parseInt(document.getElementById('layer-count').value);
+        let n = prompt("Enter number of layers:", "4");
+        if (n === null) return;
+        n = parseInt(n);
+
         if (!n || n < 1) {
             alert("Please enter a valid number of layers.");
             return;

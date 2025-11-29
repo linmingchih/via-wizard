@@ -16,7 +16,9 @@
         <div class="menu-item">
             Files
             <div class="dropdown">
-                <div class="dropdown-item" onclick="openFile()">Open Stackup XML</div>
+                <div class="dropdown-item" onclick="createNewStackup()">New Stackup</div>
+                <div class="dropdown-item" onclick="openFile()">Load Stackup XML</div>
+                <div class="dropdown-item" onclick="saveStackup()">Save Stackup XML</div>
                 <div class="dropdown-item" onclick="saveProject()">Save Project</div>
                 <div class="dropdown-item" onclick="loadProject()">Load Project</div>
                 <div class="dropdown-item" onclick="exitApp()">Exit</div>
@@ -58,19 +60,9 @@
                     <div class="stackup-left">
                         <div class="stackup-controls">
                             <div class="control-group">
-                                <label>New Stackup:</label>
-                                <input type="number" id="layer-count" placeholder="N Layers" min="1"
-                                    style="width: 60px;">
-                                <button onclick="createNewStackup()">Create</button>
-                            </div>
-                            <div class="control-group">
                                 <label>Units:</label>
                                 <input type="radio" name="units" value="mm" checked onchange="toggleUnits('mm')"> mm
                                 <input type="radio" name="units" value="mil" onchange="toggleUnits('mil')"> mil
-                            </div>
-                            <div class="control-group">
-                                <button onclick="openFile()">Load XML</button>
-                                <button onclick="saveStackup()">Save XML</button>
                             </div>
                         </div>
 
@@ -362,7 +354,7 @@
         </div>
 
         <!-- Message Window -->
-        <div id="message-window">
+        <div id="message-window" class="hidden">
             <div id="message-header">
                 <span>Messages</span>
                 <div>
