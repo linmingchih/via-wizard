@@ -164,7 +164,6 @@ function renderStackupTable() {
             <td>${createInput('dk', 'number', layer.type === 'Conductor')}</td>
             <td>${createInput('df', 'number', layer.type === 'Conductor')}</td>
             <td>${createInput('conductivity', 'number', layer.type === 'Dielectric')}</td>
-            <td>${createInput('fillMaterial', 'text', layer.type === 'Dielectric')}</td>
             <td>${createCheckbox('isReference', layer.type !== 'Conductor')}</td>
         `;
         tbody.appendChild(tr);
