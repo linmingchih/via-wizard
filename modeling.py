@@ -31,30 +31,34 @@ for layer in data['stackup']:
 index_padstack = {}
 for n, padstack in enumerate(data['padstacks']):
     index_padstack[n] = padstack['name']
-    edb.padstacks.create_circular_padstack(padstackname=padstack['name'],
+    edb.padstacks.create_padstack(padstackname=padstack['name'],
                                            holediam= f'{padstack["holeDiameter"]}mil',
                                            paddiam= f'{padstack["padSize"] }mil',
                                            antipaddiam= f'{padstack["antipadSize"]}mil',
                                            startlayer=padstack['startLayer'],
                                            endlayer=padstack['stopLayer'])
 
+
 def to_mil(x, y):
     return (f"{x}mil", f"{y}mil")
 
-create_trace = partial(edb.modeler.create_trace, start_cap_style="Flat", end_cap_style="Flat")
+create_trace = partial(edb.modeler.create_trace, end_cap_style="Flat")
 
 for via in data['placedInstances']:
-    via['id']
-    via['type']
-    
+    via_name = via["name"]
 
     index = via['padstackIndex']
 
     x0 = via["x"]
     y0 = via["y"]
 
-    if via['type'] != 'differential':
+    if via['type'] == 'single':
         edb.padstacks.place_padstack(to_mil(x0, y0), index_padstack[index])
+
+    elif via['type'] == 'gnd':
+        edb.padstacks.place_padstack(to_mil(x0, y0), index_padstack[index], 'GND')
+        continue
+    
     else:
         p = via['properties']["pitch"]
         if via['properties']["orientation"] =="vertical":
@@ -79,13 +83,15 @@ for via in data['placedInstances']:
         for pt in via['feedPaths']['feedIn'][0]:
             feed_in_pts.append(to_mil(pt['x'], pt['y']))
         
-        create_trace(feed_in_pts, feed_in_layer, feed_in_width)
+        trace = create_trace(feed_in_pts, feed_in_layer, feed_in_width)
+        edb.hfss.create_wave_port(trace, feed_in_pts[-1], via_name + '_1')
         
         feed_out_pts = []
         for pt in via['feedPaths']['feedOut'][0]:        
             feed_out_pts.append(to_mil(pt['x'], pt['y']))
         
-        create_trace(feed_out_pts, feed_out_layer, feed_out_width)
+        trace = create_trace(feed_out_pts, feed_out_layer, feed_out_width)
+        edb.hfss.create_wave_port(trace, feed_out_pts[-1], via_name + '_2')
     
     elif via['type'] == 'differential':
         feed_in_pts_p = []
@@ -94,12 +100,16 @@ for via in data['placedInstances']:
         for pt in via['feedPaths']['feedIn'][0]:
             feed_in_pts_p.append(to_mil(pt['x'], pt['y']))
         
-        create_trace(feed_in_pts_p, feed_in_layer, feed_in_width)
+        trace_p = create_trace(feed_in_pts_p, feed_in_layer, feed_in_width)
+        loc_p = feed_in_pts_p[-1]
         
         for pt in via['feedPaths']['feedIn'][1]:
             feed_in_pts_n.append(to_mil(pt['x'], pt['y']))        
         
-        create_trace(feed_in_pts_n, feed_in_layer, feed_in_width)
+        trace_n = create_trace(feed_in_pts_n, feed_in_layer, feed_in_width)
+        loc_n = feed_in_pts_n[-1]
+        
+        edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n)
         
         feed_out_pts_p = []        
         feed_out_pts_n = []
@@ -107,11 +117,15 @@ for via in data['placedInstances']:
         for pt in via['feedPaths']['feedOut'][0]:        
             feed_out_pts_p.append(to_mil(pt['x'], pt['y']))
         
-        create_trace(feed_out_pts_p, feed_out_layer, feed_out_width)
+        trace_p = create_trace(feed_out_pts_p, feed_out_layer, feed_out_width)
+        loc_p = feed_out_pts_p[-1]
         
         for pt in via['feedPaths']['feedOut'][1]:        
             feed_out_pts_n.append(to_mil(pt['x'], pt['y']))            
         
-        create_trace(feed_out_pts_n, feed_out_layer, feed_out_width)
+        trace_n = create_trace(feed_out_pts_n, feed_out_layer, feed_out_width)
+        loc_n = feed_out_pts_n[-1]
+        
+        edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n)
 
 edb.save_edb_as('d:/demo/abc.edb')
