@@ -28,6 +28,10 @@ function openTab(tabId) {
         renderPadstackTab();
     } else if (tabId === 'tab-placement') {
         renderPlacementTab();
+    } else if (tabId === 'tab-simulation') {
+        if (!isMessageWindowVisible) {
+            toggleMessageWindow();
+        }
     }
 }
 
@@ -773,7 +777,7 @@ async function exportAEDB() {
     if (window.pywebview) {
         const versionInput = document.getElementById('aedb-version');
         const version = versionInput ? versionInput.value : '2024.1';
-        
+
         // Capture board size
         const wInput = document.getElementById('canvas-width');
         const hInput = document.getElementById('canvas-height');

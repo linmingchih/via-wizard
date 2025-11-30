@@ -273,10 +273,33 @@ class ViaWizardAPI:
                 
                 self.log_message(f"Calling modeling.py with {file_path} and version {version}")
                 
-                # Use Popen to run in background/separate process
-                subprocess.Popen([sys.executable, script_path, file_path, version])
+                def run_export():
+                    try:
+                        process = subprocess.Popen(
+                            [sys.executable, script_path, file_path, version],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True
+                        )
+                        stdout, stderr = process.communicate()
+                        
+                        if stdout:
+                            self.log_message(f"Export Output:\n{stdout}")
+                        if stderr:
+                            self.log_message(f"Export Error:\n{stderr}")
+                            
+                        # Calculate expected AEDB path
+                        aedb_path = os.path.splitext(file_path)[0] + '.aedb'
+                        self.log_message(f"AEDB File generated at: {aedb_path}")
+                        
+                    except Exception as e:
+                        self.log_message(f"Export process failed: {e}")
+
+                import threading
+                t = threading.Thread(target=run_export)
+                t.start()
                 
-                self.log_message("Export process started.")
+                self.log_message("Export process started...")
                 return True
         except Exception as e:
             self.log_message(f"Error exporting AEDB: {e}")
