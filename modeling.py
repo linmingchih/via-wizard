@@ -1,8 +1,22 @@
 from pyedb import Edb
 from functools import partial
 import json
+import sys
+import os
 
-edb = Edb(version='2024.1')
+if len(sys.argv) < 3:
+    print("Usage: python modeling.py <json_path> <aedb_version>")
+    # Fallback for testing if run directly without args
+    json_path = 'd:/demo/project.json'
+    aedb_version = '2024.1'
+else:
+    json_path = sys.argv[1]
+    aedb_version = sys.argv[2]
+
+aedb_path = os.path.splitext(json_path)[0] + '.aedb'
+
+# Create new Edb
+edb = Edb(version=aedb_version)
 edb.core_hfss.hfss_extent_info.air_box_positive_vertical_extent = 0.5
 edb.core_hfss.hfss_extent_info.air_box_negative_vertical_extent = 0.5
 
@@ -20,7 +34,7 @@ frequency_range = [["linear count", "0Hz", "0Hz", 1],
 setup.add_sweep('sweep', frequency_set=frequency_range)
 
 
-with open('d:/demo/project.json', 'r') as f:
+with open(json_path, 'r') as f:
     data = json.load(f)
 
 for layer in data['stackup']:
@@ -149,4 +163,5 @@ for via in data['placedInstances']:
         edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n, via_name + '_OUT')
 
 
-edb.save_edb_as('d:/demo/abc.edb')
+edb.save_edb_as(aedb_path)
+edb.close_edb()

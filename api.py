@@ -250,6 +250,40 @@ class ViaWizardAPI:
             traceback.print_exc()
         return False
 
+    def export_aedb(self, data, version):
+        print(f"API: export_aedb called with version {version}")
+        try:
+            # Save JSON first
+            file_path = self._window.create_file_dialog(webview.SAVE_DIALOG, directory='', save_filename='project.json', file_types=('JSON Files (*.json)', 'All files (*.*)'))
+            if file_path:
+                if isinstance(file_path, (list, tuple)):
+                    file_path = file_path[0]
+                
+                import json
+                with open(file_path, 'w') as f:
+                    json.dump(data, f, indent=4)
+                self.log_message(f"Project saved to {file_path}")
+                
+                # Call modeling.py
+                import subprocess
+                import sys
+                
+                # Assume modeling.py is in the same directory as api.py
+                script_path = os.path.join(os.path.dirname(__file__), 'modeling.py')
+                
+                self.log_message(f"Calling modeling.py with {file_path} and version {version}")
+                
+                # Use Popen to run in background/separate process
+                subprocess.Popen([sys.executable, script_path, file_path, version])
+                
+                self.log_message("Export process started.")
+                return True
+        except Exception as e:
+            self.log_message(f"Error exporting AEDB: {e}")
+            import traceback
+            traceback.print_exc()
+        return False
+
     def load_project(self):
         print("API: load_project called")
         try:

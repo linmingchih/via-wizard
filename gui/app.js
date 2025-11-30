@@ -769,6 +769,38 @@ function updatePadstackLayer(layerName, key, value) {
     p.layers[layerName][key] = parseFloat(value);
 }
 
+async function exportAEDB() {
+    if (window.pywebview) {
+        const versionInput = document.getElementById('aedb-version');
+        const version = versionInput ? versionInput.value : '2024.1';
+        
+        // Capture board size
+        const wInput = document.getElementById('canvas-width');
+        const hInput = document.getElementById('canvas-height');
+        const boardW = wInput ? (parseFloat(wInput.value) || 400) : 400;
+        const boardH = hInput ? (parseFloat(hInput.value) || 200) : 200;
+
+        // Calculate feed paths for all instances
+        const instancesWithPaths = placedInstances.map(inst => {
+            const feedPaths = calculateFeedPaths(inst, boardW, boardH);
+            return { ...inst, feedPaths };
+        });
+
+        const projectData = {
+            stackup: currentStackup,
+            units: currentUnits,
+            padstacks: padstacks,
+            placedInstances: instancesWithPaths,
+            canvasGridSpacing: canvasState.gridSpacing,
+            boardWidth: boardW,
+            boardHeight: boardH
+        };
+
+        addMessage(`Exporting to AEDB version ${version}...`);
+        await window.pywebview.api.export_aedb(projectData, version);
+    }
+}
+
 // Initialize
 window.addEventListener('pywebviewready', function () {
     addMessage("Via Wizard GUI Initialized.");
