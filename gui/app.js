@@ -417,8 +417,8 @@ function calculateFeedPaths(inst, boardW, boardH) {
                 if (isFeedIn) {
                     const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
                     const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
-                    resultPaths.push([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
-                    resultPaths.push([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
                 } else {
                     const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
                     const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
@@ -434,8 +434,8 @@ function calculateFeedPaths(inst, boardW, boardH) {
                 if (isFeedIn) {
                     const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
                     const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
-                    resultPaths.push([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
-                    resultPaths.push([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
                 } else {
                     const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
                     const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
@@ -451,8 +451,8 @@ function calculateFeedPaths(inst, boardW, boardH) {
                 if (isFeedIn) {
                     const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
                     const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
-                    resultPaths.push([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
-                    resultPaths.push([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
                 } else {
                     const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
                     const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
@@ -468,8 +468,8 @@ function calculateFeedPaths(inst, boardW, boardH) {
                 if (isFeedIn) {
                     const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
                     const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
-                    resultPaths.push([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
-                    resultPaths.push([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
                 } else {
                     const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
                     const k2x = vias[1].x - Math.abs(vias[1].y - t2y);

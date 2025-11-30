@@ -8,6 +8,9 @@ with open('d:/demo/project.json', 'r') as f:
     data = json.load(f)
 
 for layer in data['stackup']:
+    if layer['thickness'] == 0:
+        continue
+    
     material_name = f'm_{layer["name"]}'
     if layer['type'] == 'Conductor':
         edb.materials.add_conductor_material(material_name, layer['conductivity'])
@@ -20,6 +23,7 @@ for layer in data['stackup']:
                                  layer_type=layer_type,
                                  material = material_name,
                                  thickness=f"{layer['thickness']}{data['units']}",)
+    
     if layer["isReference"] == True:
         edb.modeler.create_rectangle(layer['name'], 
                                      net_name='GND', 
@@ -84,14 +88,14 @@ for via in data['placedInstances']:
             feed_in_pts.append(to_mil(pt['x'], pt['y']))
         
         trace = create_trace(feed_in_pts, feed_in_layer, feed_in_width)
-        edb.hfss.create_wave_port(trace, feed_in_pts[-1], via_name + '_1')
+        edb.hfss.create_wave_port(trace, feed_in_pts[-1], via_name + '_IN')
         
         feed_out_pts = []
         for pt in via['feedPaths']['feedOut'][0]:        
             feed_out_pts.append(to_mil(pt['x'], pt['y']))
         
         trace = create_trace(feed_out_pts, feed_out_layer, feed_out_width)
-        edb.hfss.create_wave_port(trace, feed_out_pts[-1], via_name + '_2')
+        edb.hfss.create_wave_port(trace, feed_out_pts[-1], via_name + '_OUT')
     
     elif via['type'] == 'differential':
         feed_in_pts_p = []
@@ -109,7 +113,7 @@ for via in data['placedInstances']:
         trace_n = create_trace(feed_in_pts_n, feed_in_layer, feed_in_width)
         loc_n = feed_in_pts_n[-1]
         
-        edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n)
+        edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n, via_name + '_IN')
         
         feed_out_pts_p = []        
         feed_out_pts_n = []
@@ -126,6 +130,6 @@ for via in data['placedInstances']:
         trace_n = create_trace(feed_out_pts_n, feed_out_layer, feed_out_width)
         loc_n = feed_out_pts_n[-1]
         
-        edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n)
+        edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n, via_name + '_OUT')
 
 edb.save_edb_as('d:/demo/abc.edb')
