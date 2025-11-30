@@ -1448,6 +1448,25 @@ function distToSegmentSquared(p, v, w) {
 
 function placeInstance(x, y) {
     const padstackIndex = document.getElementById('placement-padstack-select').value;
+    const nameInput = document.getElementById('placement-name');
+    let name = nameInput ? nameInput.value.trim() : "";
+
+    // Generate default name if empty
+    if (!name) {
+        const prefix = placementMode === 'differential' ? 'DiffPair' : (placementMode === 'gnd' ? 'GND' : 'Via');
+        let count = 1;
+        while (placedInstances.some(i => i.name === `${prefix}_${count}`)) {
+            count++;
+        }
+        name = `${prefix}_${count}`;
+    }
+
+    // Check uniqueness
+    if (placedInstances.some(i => i.name === name)) {
+        addMessage(`Error: Name "${name}" already exists. Please choose a unique name.`);
+        alert(`Error: Name "${name}" already exists. Please choose a unique name.`);
+        return;
+    }
 
     // Snap to grid
     const snap = canvasState.gridSpacing;
@@ -1456,6 +1475,7 @@ function placeInstance(x, y) {
 
     const newInst = {
         id: Date.now(),
+        name: name,
         type: placementMode,
         x: snappedX,
         y: snappedY,
@@ -1500,7 +1520,7 @@ function renderPlacedList() {
     placedInstances.forEach(inst => {
         const li = document.createElement('li');
         const pName = padstacks[inst.padstackIndex]?.name || 'Unknown';
-        li.textContent = `${inst.type} (${pName}) @ [${inst.x}, ${inst.y}]`;
+        li.textContent = `${inst.name || inst.type} (${pName}) @ [${inst.x}, ${inst.y}]`;
         if (inst.id === selectedInstanceId) li.classList.add('active');
         li.onclick = () => selectInstance(inst.id);
         list.appendChild(li);
@@ -1518,6 +1538,10 @@ function renderPropertiesPanel() {
     if (!inst) return;
 
     let html = `
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" value="${inst.name || ''}" onchange="updateInstanceProp(${inst.id}, 'name', this.value)">
+        </div>
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;">
                 <label>X:</label>
@@ -1609,7 +1633,22 @@ function updateInstanceProp(id, key, value) {
     const inst = placedInstances.find(i => i.id === id);
     if (!inst) return;
 
-    if (key === 'x' || key === 'y') {
+    if (key === 'name') {
+        const newName = value.trim();
+        if (!newName) {
+            alert("Name cannot be empty.");
+            // Revert value in input
+            renderPropertiesPanel();
+            return;
+        }
+        if (placedInstances.some(i => i.id !== id && i.name === newName)) {
+            alert(`Name "${newName}" already exists.`);
+            // Revert value in input
+            renderPropertiesPanel();
+            return;
+        }
+        inst.name = newName;
+    } else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
         if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing') {
