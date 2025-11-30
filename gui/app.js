@@ -71,6 +71,30 @@ window.onerror = function (message, source, lineno, colno, error) {
 };
 
 // Stackup Logic
+function resetProjectData() {
+    // Reset Padstacks
+    padstacks = [];
+    currentPadstackIndex = -1;
+    renderPadstackList();
+    renderPadstackForm();
+
+    // Reset Placement
+    placedInstances = [];
+    selectedInstanceId = null;
+
+    // Clear Placement UI elements if they exist
+    const list = document.getElementById('placed-list');
+    if (list) list.innerHTML = '';
+
+    const propPanel = document.getElementById('prop-panel-content');
+    if (propPanel) propPanel.innerHTML = '<p class="hint">Select an instance to view properties.</p>';
+
+    // Redraw canvas if initialized
+    if (typeof drawPlacementCanvas === 'function') {
+        drawPlacementCanvas();
+    }
+}
+
 function createNewStackup() {
     try {
         let n = prompt("Enter number of layers:", "4");
@@ -81,6 +105,8 @@ function createNewStackup() {
             alert("Please enter a valid number of layers.");
             return;
         }
+
+        resetProjectData();
 
         currentStackup = [];
         // Pattern: Dielectric - Conductor - Dielectric ...
@@ -312,6 +338,7 @@ async function openFile() {
                     addMessage(`Received ${stackup ? stackup.length : 'null'} layers.`);
 
                     if (stackup) {
+                        resetProjectData();
                         currentStackup = stackup;
 
                         // Update unit UI
