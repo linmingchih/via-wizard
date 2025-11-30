@@ -323,11 +323,68 @@ async function saveStackup() {
 }
 
 async function saveProject() {
-    if (window.pywebview) await window.pywebview.api.save_project();
+    if (window.pywebview) {
+        const projectData = {
+            stackup: currentStackup,
+            units: currentUnits,
+            padstacks: padstacks,
+            placedInstances: placedInstances,
+            canvasGridSpacing: canvasState.gridSpacing
+        };
+        await window.pywebview.api.save_project(projectData);
+    }
 }
 
 async function loadProject() {
-    if (window.pywebview) await window.pywebview.api.load_project();
+    if (window.pywebview) {
+        const data = await window.pywebview.api.load_project();
+        if (data) {
+            // Restore Stackup
+            if (data.stackup) {
+                currentStackup = data.stackup;
+                renderStackupTable();
+                render2DView();
+            }
+
+            // Restore Units
+            if (data.units) {
+                currentUnits = data.units;
+                const radio = document.querySelector(`input[name="units"][value="${currentUnits}"]`);
+                if (radio) radio.checked = true;
+            }
+
+            // Restore Padstacks
+            if (data.padstacks) {
+                padstacks = data.padstacks;
+                renderPadstackList();
+                if (padstacks.length > 0) {
+                    selectPadstack(0);
+                } else {
+                    currentPadstackIndex = -1;
+                    document.getElementById('padstack-list').innerHTML = '';
+                    // Clear form
+                }
+            }
+
+            // Restore Placement
+            if (data.placedInstances) {
+                placedInstances = data.placedInstances;
+            } else {
+                placedInstances = [];
+            }
+
+            if (data.canvasGridSpacing) {
+                canvasState.gridSpacing = data.canvasGridSpacing;
+                const gridInput = document.getElementById('grid-spacing');
+                if (gridInput) gridInput.value = canvasState.gridSpacing;
+            }
+
+            // Re-render placement
+            renderPlacementTab();
+
+            addMessage("Project loaded successfully.");
+        }
+    }
 }
 
 async function exitApp() {
@@ -1089,6 +1146,10 @@ function handleCanvasMouseDown(e) {
             canvas.style.cursor = 'grabbing';
         } else {
             // Place new
+            if (padstacks.length === 0) {
+                addMessage("No padstacks defined. Please create a padstack first.");
+                return;
+            }
             placeInstance(mouseX, mouseY);
         }
     }

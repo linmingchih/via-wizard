@@ -223,13 +223,43 @@ class ViaWizardAPI:
             import traceback
             traceback.print_exc()
 
-    def save_project(self):
-        print("API: save_project called")
-        self.log_message("Project saved (mock).")
+    def save_project(self, data):
+        print(f"API: save_project called with data keys: {list(data.keys())}")
+        try:
+            file_path = self._window.create_file_dialog(webview.SAVE_DIALOG, directory='', save_filename='project.json', file_types=('JSON Files (*.json)', 'All files (*.*)'))
+            if file_path:
+                if isinstance(file_path, (list, tuple)):
+                    file_path = file_path[0]
+                
+                import json
+                with open(file_path, 'w') as f:
+                    json.dump(data, f, indent=4)
+                self.log_message(f"Project saved to {file_path}")
+                return True
+        except Exception as e:
+            self.log_message(f"Error saving project: {e}")
+            import traceback
+            traceback.print_exc()
+        return False
 
     def load_project(self):
         print("API: load_project called")
-        self.log_message("Project loaded (mock).")
+        try:
+            file_path = self._window.create_file_dialog(webview.OPEN_DIALOG, directory='', file_types=('JSON Files (*.json)', 'All files (*.*)'))
+            if file_path:
+                if isinstance(file_path, (list, tuple)):
+                    file_path = file_path[0]
+                
+                import json
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                self.log_message(f"Project loaded from {file_path}")
+                return data
+        except Exception as e:
+            self.log_message(f"Error loading project: {e}")
+            import traceback
+            traceback.print_exc()
+        return None
 
     def exit_app(self):
         print("API: exit_app called")
@@ -239,7 +269,8 @@ class ViaWizardAPI:
     def log_message(self, message):
         print(f"API: log_message -> {message}")
         if self._window:
-            self._window.evaluate_js(f"addMessage('{message}')")
+            safe_message = str(message).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+            self._window.evaluate_js(f"addMessage('{safe_message}')")
 
     def get_stackup_data(self):
         print("API: get_stackup_data called")
