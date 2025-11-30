@@ -37,6 +37,7 @@ setup.add_sweep('sweep', frequency_set=frequency_range)
 with open(json_path, 'r') as f:
     data = json.load(f)
 
+layer_rect = {}
 for layer in data['stackup']:
     if layer['thickness'] == 0:
         continue
@@ -55,13 +56,14 @@ for layer in data['stackup']:
                                  thickness=f"{layer['thickness']}{data['units']}",)
     
     if layer["isReference"] == True:
-        edb.modeler.create_rectangle(layer['name'], 
+        rect = edb.modeler.create_rectangle(layer['name'], 
                                      net_name='GND', 
                                      center_point=(0,0),
                                      width=f'{data["boardWidth"]}mil',
                                      height=f'{data["boardHeight"]}mil',
                                      representation_type="CenterWidthHeight")
-
+        layer_rect[layer['name']] = rect 
+        
 index_padstack = {}
 for n, padstack in enumerate(data['padstacks']):
     index_padstack[n] = padstack['name']
