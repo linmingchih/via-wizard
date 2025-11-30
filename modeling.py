@@ -81,6 +81,33 @@ def to_mil(x, y):
 create_trace = partial(edb.modeler.create_trace, end_cap_style="Flat")
 
 for via in data['placedInstances']:
+    if via['type'] != 'differential':
+        continue
+    
+    index = via['padstackIndex']
+
+    x0 = via["x"]
+    y0 = via["y"]
+    
+    pitch = via['properties']["pitch"]
+    
+    if via['properties']["orientation"] == "horizontal":
+        width = str(pitch) + 'mil'
+        height = str(data['padstacks'][index]['antipadSize']) + 'mil'
+    else:
+        width = str(data['padstacks'][index]['antipadSize']) + 'mil'
+        height = str(pitch) + 'mil'
+    
+    for layer, rect in layer_rect.items():
+        void = edb.modeler.create_rectangle(layer,
+                                            center_point=to_mil(x0, y0),
+                                            width = width,
+                                            height = height,
+                                            representation_type="CenterWidthHeight")
+        
+        edb.modeler.add_void(rect, void)
+
+for via in data['placedInstances']:
     via_name = via["name"]
 
     index = via['padstackIndex']
