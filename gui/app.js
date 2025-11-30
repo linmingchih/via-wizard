@@ -724,6 +724,9 @@ function updatePadstackProperty(key, value) {
     }
     p[key] = value;
     if (key === 'name') renderPadstackList();
+    if (typeof drawPlacementCanvas === 'function') {
+        drawPlacementCanvas();
+    }
 }
 
 function toggleBackdrill(enabled) {
@@ -1599,11 +1602,11 @@ function renderPropertiesPanel() {
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;">
                 <label>X:</label>
-                <input type="number" value="${inst.x}" onchange="updateInstanceProp(${inst.id}, 'x', this.value)" style="width: 50%;">
+                <input type="number" value="${inst.x}" oninput="updateInstanceProp(${inst.id}, 'x', this.value)" style="width: 50%;">
             </div>
             <div class="form-group" style="flex: 1;">
                 <label>Y:</label>
-                <input type="number" value="${inst.y}" onchange="updateInstanceProp(${inst.id}, 'y', this.value)" style="width: 50%;">
+                <input type="number" value="${inst.y}" oninput="updateInstanceProp(${inst.id}, 'y', this.value)" style="width: 50%;">
             </div>
         </div>
     `;
@@ -1626,11 +1629,11 @@ function renderPropertiesPanel() {
                <div style="display: flex; gap: 10px;">
                    <div class="form-group" style="flex: 1;">
                        <label>Width:</label>
-                       <input type="number" value="${widthVal}" onchange="updateInstanceProp(${inst.id}, '${widthProp}', this.value)" style="width: 60px;">
+                       <input type="number" value="${widthVal}" oninput="updateInstanceProp(${inst.id}, '${widthProp}', this.value)" style="width: 60px;">
                    </div>
                    <div class="form-group" style="flex: 1;">
                        <label>Spacing:</label>
-                       <input type="number" value="${spacingVal}" onchange="updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" style="width: 60px;">
+                       <input type="number" value="${spacingVal}" oninput="updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" style="width: 60px;">
                    </div>
                </div>
             `;
@@ -1639,7 +1642,7 @@ function renderPropertiesPanel() {
         html += `
             <div class="form-group">
                 <label>Pitch:</label>
-                <input type="number" value="${inst.properties.pitch}" onchange="updateInstanceProp(${inst.id}, 'pitch', this.value)">
+                <input type="number" value="${inst.properties.pitch}" oninput="updateInstanceProp(${inst.id}, 'pitch', this.value)">
             </div>
             <div class="form-group">
                 <label>Orientation:</label>
@@ -1667,7 +1670,7 @@ function renderPropertiesPanel() {
                </div>
                <div class="form-group">
                    <label>${label} Width:</label>
-                   <input type="number" value="${widthVal}" onchange="updateInstanceProp(${inst.id}, '${widthProp}', this.value)">
+                   <input type="number" value="${widthVal}" oninput="updateInstanceProp(${inst.id}, '${widthProp}', this.value)">
                </div>
             `;
         };
