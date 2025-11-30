@@ -3,6 +3,8 @@ from functools import partial
 import json
 
 edb = Edb(version='2024.1')
+edb.core_hfss.hfss_extent_info.air_box_positive_vertical_extent = 0.5
+edb.core_hfss.hfss_extent_info.air_box_negative_vertical_extent = 0.5
 
 with open('d:/demo/project.json', 'r') as f:
     data = json.load(f)
@@ -131,5 +133,6 @@ for via in data['placedInstances']:
         loc_n = feed_out_pts_n[-1]
         
         edb.hfss.create_differential_wave_port(trace_p, loc_p, trace_n, loc_n, via_name + '_OUT')
+
 
 edb.save_edb_as('d:/demo/abc.edb')
