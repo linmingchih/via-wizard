@@ -12,12 +12,17 @@ class ViaWizardAPI:
 
     def open_file_dialog(self):
         print("API: open_file_dialog called")
-        # In a real app, use webview.create_file_dialog
-        # For now, returning a mock path or triggering the parse logic directly if file exists
-        # Let's mock selecting 'stack.xml' if it exists
-        if os.path.exists("stack.xml"):
-            return os.path.abspath("stack.xml")
-        return "mock_stackup.xml"
+        try:
+            file_path = self._window.create_file_dialog(webview.OPEN_DIALOG, directory='', file_types=('XML Files (*.xml)', 'All files (*.*)'))
+            if file_path:
+                if isinstance(file_path, (list, tuple)):
+                    return file_path[0]
+                return file_path
+        except Exception as e:
+            self.log_message(f"Error opening file dialog: {e}")
+            import traceback
+            traceback.print_exc()
+        return None
 
     def parse_stackup_xml(self, path):
         print(f"API: parse_stackup_xml called with {path}")
@@ -99,12 +104,15 @@ class ViaWizardAPI:
             # 2. Parse Layers
             layers = []
             layers_node = None
+            length_unit = "mm" # Default
+
             for child in stackup_node:
                 if 'Layers' in child.tag:
                     layers_node = child
                     break
 
             if layers_node is not None:
+                length_unit = layers_node.get("LengthUnit", "mm")
                 for layer_node in layers_node:
                     mat_name = layer_node.get("Material", "")
                     mat_props = materials_map.get(mat_name, {"dk": 0, "df": 0, "conductivity": 0})
@@ -138,14 +146,14 @@ class ViaWizardAPI:
                     }
                     layers.append(layer_data)
                 
-            self.log_message(f"Parsed {len(layers)} layers from XML.")
-            return layers
+            self.log_message(f"Parsed {len(layers)} layers from XML. Unit: {length_unit}")
+            return {"layers": layers, "unit": length_unit}
 
         except Exception as e:
             self.log_message(f"Error parsing XML: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return {"layers": [], "unit": "mm"}
 
     def save_stackup_xml(self, path, data):
         print(f"API: save_stackup_xml called with {len(data)} layers")
@@ -275,8 +283,9 @@ class ViaWizardAPI:
     def get_stackup_data(self):
         print("API: get_stackup_data called")
         # Mock stackup data
-        return [
+        layers = [
             {"name": "Top", "type": "Conductor", "thickness": 0.035, "dk": "", "df": "", "conductivity": 5.8e7, "fillMaterial": "", "isReference": False},
             {"name": "Dielectric1", "type": "Dielectric", "thickness": 0.1, "dk": 4.4, "df": 0.02, "conductivity": "", "fillMaterial": "", "isReference": False},
             {"name": "Bottom", "type": "Conductor", "thickness": 0.035, "dk": "", "df": "", "conductivity": 5.8e7, "fillMaterial": "", "isReference": False}
         ]
+        return {"layers": layers, "unit": "mm"}

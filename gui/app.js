@@ -294,14 +294,32 @@ async function openFile() {
             if (data) {
                 if (typeof data === 'string' && data.endsWith('.xml')) {
                     addMessage(`Parsing file: ${data}`);
-                    const stackup = await window.pywebview.api.parse_stackup_xml(data);
+                    const result = await window.pywebview.api.parse_stackup_xml(data);
+
+                    let stackup = result;
+                    let unit = 'mm';
+
+                    // Handle new return format {layers: [], unit: ""}
+                    if (result && !Array.isArray(result) && result.layers) {
+                        stackup = result.layers;
+                        unit = result.unit || 'mm';
+                    }
+
                     addMessage(`Received ${stackup ? stackup.length : 'null'} layers.`);
 
                     if (stackup) {
                         currentStackup = stackup;
+
+                        // Update unit UI
+                        const radio = document.querySelector(`input[name="units"][value="${unit}"]`);
+                        if (radio) {
+                            radio.checked = true;
+                            currentUnits = unit;
+                        }
+
                         renderStackupTable();
                         render2DView();
-                        addMessage(`Loaded stackup from ${data}`);
+                        addMessage(`Loaded stackup from ${data} (Unit: ${unit})`);
                     }
                 } else {
                     addMessage("Selected file is not an XML file.");
