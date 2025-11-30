@@ -6,6 +6,20 @@ edb = Edb(version='2024.1')
 edb.core_hfss.hfss_extent_info.air_box_positive_vertical_extent = 0.5
 edb.core_hfss.hfss_extent_info.air_box_negative_vertical_extent = 0.5
 
+setup = edb.create_hfss_setup("hfss_setup")
+
+setup.set_solution_single_frequency(frequency='2GHz', 
+                                    max_num_passes=20,
+                                    max_delta_s=0.01)
+
+
+frequency_range = [["linear count", "0Hz", "0Hz", 1],
+                   ["log scale", "1Hz", "50MHz", 50],
+                   ["linear scale", "50MHz", "10GHz", '50MHz'],]
+
+setup.add_sweep('sweep', frequency_set=frequency_range)
+
+
 with open('d:/demo/project.json', 'r') as f:
     data = json.load(f)
 
