@@ -47,14 +47,25 @@ for via in data['placedInstances']:
     via['id']
     via['type']
     
-    locations = via.get('viaLocations', [{'x': via['x'], 'y': via['y']}])
+
     index = via['padstackIndex']
-    
-    for loc in locations:
-        x = f'{loc["x"]}mil'
-        y = f'{loc["y"]}mil'
-        edb.padstacks.place_padstack((x, y), index_padstack[index])
-    
+
+    x0 = via["x"]
+    y0 = via["y"]
+
+    if via['type'] != 'differential':
+        edb.padstacks.place_padstack(to_mil(x0, y0), index_padstack[index])
+    else:
+        p = via['properties']["pitch"]
+        if via['properties']["orientation"] =="vertical":
+            edb.padstacks.place_padstack(to_mil(x0, y0 + p/2), index_padstack[index])
+            edb.padstacks.place_padstack(to_mil(x0, y0 - p/2), index_padstack[index])
+        else:
+            edb.padstacks.place_padstack(to_mil(x0 + p/2, y0), index_padstack[index])
+            edb.padstacks.place_padstack(to_mil(x0 - p/2, y0), index_padstack[index])       
+
+            
+    locations = via.get('viaLocations', [{'x': via['x'], 'y': via['y']}])            
     if via['type'] == 'gnd':    
         continue
     
