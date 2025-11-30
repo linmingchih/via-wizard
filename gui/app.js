@@ -324,15 +324,149 @@ async function saveStackup() {
 
 async function saveProject() {
     if (window.pywebview) {
+        // Capture board size
+        const boardW = parseFloat(document.getElementById('canvas-width').value) || 400;
+        const boardH = parseFloat(document.getElementById('canvas-height').value) || 200;
+
+        // Calculate feed paths for all instances
+        const instancesWithPaths = placedInstances.map(inst => {
+            const feedPaths = calculateFeedPaths(inst, boardW, boardH);
+            return { ...inst, feedPaths };
+        });
+
         const projectData = {
             stackup: currentStackup,
             units: currentUnits,
             padstacks: padstacks,
-            placedInstances: placedInstances,
-            canvasGridSpacing: canvasState.gridSpacing
+            placedInstances: instancesWithPaths,
+            canvasGridSpacing: canvasState.gridSpacing,
+            boardWidth: boardW,
+            boardHeight: boardH
         };
         await window.pywebview.api.save_project(projectData);
     }
+}
+
+function calculateFeedPaths(inst, boardW, boardH) {
+    const paths = { feedIn: [], feedOut: [] };
+
+    if (inst.type === 'single') {
+        const arrowDir = inst.properties.arrowDirection || 0;
+
+        const getPath = (isFeedIn) => {
+            let targetDir = arrowDir;
+            if (isFeedIn) targetDir = (arrowDir + 2) % 4;
+
+            let edgeX = inst.x;
+            let edgeY = inst.y;
+
+            if (targetDir === 0) edgeY = boardH / 2;
+            else if (targetDir === 1) edgeX = boardW / 2;
+            else if (targetDir === 2) edgeY = -boardH / 2;
+            else if (targetDir === 3) edgeX = -boardW / 2;
+
+            return [{ x: inst.x, y: inst.y }, { x: edgeX, y: edgeY }];
+        };
+
+        paths.feedIn.push(getPath(true));
+        paths.feedOut.push(getPath(false));
+
+    } else if (inst.type === 'differential') {
+        const pitch = inst.properties.pitch || 1.0;
+        const isVert = inst.properties.orientation === 'vertical';
+        const dx = isVert ? 0 : pitch / 2;
+        const dy = isVert ? pitch / 2 : 0;
+        const v1 = { x: inst.x - dx, y: inst.y - dy };
+        const v2 = { x: inst.x + dx, y: inst.y + dy };
+
+        const getDiffPaths = (isFeedIn) => {
+            const width = isFeedIn ? inst.properties.feedInWidth : inst.properties.feedOutWidth;
+            const spacing = isFeedIn ? inst.properties.feedInSpacing : inst.properties.feedOutSpacing;
+            if (!width || width <= 0) return [];
+
+            const tracePitch = width + spacing;
+            const arrowDir = inst.properties.arrowDirection || 0;
+
+            let vias = [v1, v2];
+            let resultPaths = [];
+
+            if (arrowDir === 0) { // Up
+                vias.sort((a, b) => a.x - b.x);
+                const t1x = inst.x - tracePitch / 2;
+                const t2x = inst.x + tracePitch / 2;
+                const edgeY = isFeedIn ? -boardH / 2 : boardH / 2;
+
+                if (isFeedIn) {
+                    const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
+                    resultPaths.push([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
+                    resultPaths.push([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else {
+                    const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
+                }
+            } else if (arrowDir === 1) { // Right
+                vias.sort((a, b) => a.y - b.y);
+                const t1y = inst.y - tracePitch / 2;
+                const t2y = inst.y + tracePitch / 2;
+                const edgeX = isFeedIn ? -boardW / 2 : boardW / 2;
+
+                if (isFeedIn) {
+                    const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
+                    resultPaths.push([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
+                    resultPaths.push([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else {
+                    const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
+                }
+            } else if (arrowDir === 2) { // Down
+                vias.sort((a, b) => a.x - b.x);
+                const t1x = inst.x - tracePitch / 2;
+                const t2x = inst.x + tracePitch / 2;
+                const edgeY = isFeedIn ? boardH / 2 : -boardH / 2;
+
+                if (isFeedIn) {
+                    const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
+                    resultPaths.push([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
+                    resultPaths.push([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else {
+                    const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
+                    const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
+                }
+            } else if (arrowDir === 3) { // Left
+                vias.sort((a, b) => a.y - b.y);
+                const t1y = inst.y - tracePitch / 2;
+                const t2y = inst.y + tracePitch / 2;
+                const edgeX = isFeedIn ? boardW / 2 : -boardW / 2;
+
+                if (isFeedIn) {
+                    const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
+                    resultPaths.push([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
+                    resultPaths.push([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
+                } else {
+                    const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
+                    const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
+                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
+                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
+                }
+            }
+            return resultPaths;
+        };
+
+        paths.feedIn = getDiffPaths(true);
+        paths.feedOut = getDiffPaths(false);
+    }
+
+    return paths;
 }
 
 async function loadProject() {
@@ -377,6 +511,15 @@ async function loadProject() {
                 canvasState.gridSpacing = data.canvasGridSpacing;
                 const gridInput = document.getElementById('grid-spacing');
                 if (gridInput) gridInput.value = canvasState.gridSpacing;
+            }
+
+            if (data.boardWidth) {
+                const wInput = document.getElementById('canvas-width');
+                if (wInput) wInput.value = data.boardWidth;
+            }
+            if (data.boardHeight) {
+                const hInput = document.getElementById('canvas-height');
+                if (hInput) hInput.value = data.boardHeight;
             }
 
             // Re-render placement
