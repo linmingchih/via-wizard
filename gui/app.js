@@ -624,7 +624,7 @@ function addPadstack() {
         })(),
         backdrill: {
             enabled: false,
-            diameter: 0.3,
+            diameter: 10,
             mode: "layer", // or 'depth'
             toLayer: "",
             stub: 0,
@@ -789,6 +789,9 @@ function toggleBdMode(mode) {
 function updateBackdrillProperty(key, value) {
     if (currentPadstackIndex === -1) return;
     const p = padstacks[currentPadstackIndex];
+    if (key === 'diameter' || key === 'stub' || key === 'depth') {
+        value = parseFloat(value);
+    }
     p.backdrill[key] = value;
 }
 

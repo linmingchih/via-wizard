@@ -192,53 +192,52 @@
                         <div class="config-section">
                             <h4>Backdrill Settings</h4>
 
-                            <div
-                                style="background-color: #3e3e42; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #ffab00;">
-                                <span style="font-weight: bold; color: #ffab00;">Info:</span> This feature is not ready
-                                yet.
-                            </div>
-
                             <div class="form-group"
-                                style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; opacity: 0.5; pointer-events: none;">
+                                style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
                                 <div class="checkbox-group">
-                                    <input type="checkbox" id="pad-backdrill-en" disabled>
+                                    <input type="checkbox" id="pad-backdrill-en"
+                                        onchange="toggleBackdrill(this.checked)">
                                     <label for="pad-backdrill-en">Enable Backdrill</label>
                                 </div>
                             </div>
 
-                            <div id="backdrill-inline-config" class="disabled"
-                                style="opacity: 0.5; pointer-events: none;">
+                            <div id="backdrill-inline-config" class="disabled">
                                 <div class="form-group">
-                                    <label>Drill Diameter:</label>
+                                    <label>Drill Diameter (mil):</label>
                                     <div class="input-with-unit">
-                                        <input type="number" id="bd-diameter" disabled>
-                                        <span class="unit-label">mm</span>
+                                        <input type="number" id="bd-diameter"
+                                            onchange="updateBackdrillProperty('diameter', this.value)">
                                     </div>
                                 </div>
 
                                 <div class="form-group">
                                     <label>Mode:</label>
                                     <div class="radio-group">
-                                        <input type="radio" name="bd-mode" value="layer" checked disabled> By Layer
-                                        <input type="radio" name="bd-mode" value="depth" disabled> By Depth
+                                        <input type="radio" name="bd-mode" value="layer" checked
+                                            onchange="toggleBdMode(this.value)"> By Layer
+                                        <input type="radio" name="bd-mode" value="depth"
+                                            onchange="toggleBdMode(this.value)"> By Depth
                                     </div>
                                 </div>
 
                                 <div id="bd-mode-layer-group">
                                     <div class="form-group">
                                         <label>To Layer:</label>
-                                        <select id="bd-to-layer" disabled></select>
+                                        <select id="bd-to-layer"
+                                            onchange="updateBackdrillProperty('toLayer', this.value)"></select>
                                     </div>
                                     <div class="form-group">
-                                        <label>Stub Length:</label>
-                                        <input type="number" id="bd-stub" disabled>
+                                        <label>Stub Length (mil):</label>
+                                        <input type="number" id="bd-stub"
+                                            onchange="updateBackdrillProperty('stub', this.value)">
                                     </div>
                                 </div>
 
                                 <div id="bd-mode-depth-group" class="hidden">
                                     <div class="form-group">
                                         <label>Drill Depth:</label>
-                                        <input type="number" id="bd-depth" disabled>
+                                        <input type="number" id="bd-depth"
+                                            onchange="updateBackdrillProperty('depth', this.value)">
                                     </div>
                                 </div>
                             </div>
