@@ -1,6 +1,10 @@
+[English](README.md) | [繁體中文](README.zh-TW.md)
+
 # Via Wizard
 
 Via Wizard is a powerful, GUI-based tool designed to streamline the creation and simulation of PCB vias. It leverages **Ansys AEDT** (via `pyedb`) to generate high-fidelity simulation models directly from a user-friendly interface.
+
+[![Via Wizard Demo](http://img.youtube.com/vi/z5gnXKUB2Dc/0.jpg)](https://www.youtube.com/watch?v=z5gnXKUB2Dc)
 
 ## Features
 
@@ -38,27 +42,12 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 
 ## Installation
 
-1.  **Clone the repository**:
+1.  **Run the installation script**:
+    Double-click `install.bat` or run it from the command line:
     ```bash
-    git clone <repository-url>
-    cd via-wizard
+    install.bat
     ```
-
-2.  **Set up a virtual environment** (recommended):
-    ```bash
-    python -m venv .venv
-    # Windows
-    .venv\Scripts\activate
-    # Linux/Mac
-    source .venv/bin/activate
-    ```
-
-3.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    # Or if using uv
-    uv sync
-    ```
+    This script will set up the virtual environment and install all necessary dependencies.
 
 ## Usage
 
@@ -87,4 +76,4 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 
 ## License
 
-[License Information Here]
+MIT License
