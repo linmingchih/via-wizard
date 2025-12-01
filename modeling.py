@@ -50,6 +50,7 @@ class ViaInstance:
         self.antipad_value = padstack_config.antipad_value
         self._units = units
         self._to_mil = to_mil_func
+        self.padstack = padstack_config
 
     def _get_feed_points(self, path_data):
         """Converts path coordinates to unit strings."""
@@ -66,7 +67,11 @@ class ViaInstance:
         if self.type == 'gnd':
             edb_padstacks.place_padstack(center, self.padstack_name, 'GND')
         elif self.type == 'single':
-            edb_padstacks.place_padstack(center, self.padstack_name)
+            via = edb_padstacks.place_padstack(center, self.padstack_name)
+            if self.padstack.bd_enabled:
+                via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
+
+
         elif self.type == 'differential':
             pitch = self.properties["pitch"]
             # Calculate P and N locations based on orientation
@@ -76,8 +81,11 @@ class ViaInstance:
             else: # horizontal
                 p_loc = self._to_mil(self.x + pitch / 2, self.y)
                 n_loc = self._to_mil(self.x - pitch / 2, self.y)
-            edb_padstacks.place_padstack(p_loc, self.padstack_name)
-            edb_padstacks.place_padstack(n_loc, self.padstack_name)
+            via_p = edb_padstacks.place_padstack(p_loc, self.padstack_name)
+            via_n = edb_padstacks.place_padstack(n_loc, self.padstack_name)
+            if self.padstack.bd_enabled:
+                via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
+                via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
 
     def create_void(self, edb_modeler, layer_rects: dict):
         """Creates an antipad void on reference layers for differential vias."""
