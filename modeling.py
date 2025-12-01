@@ -12,6 +12,8 @@ class PadstackConfig:
         self.hole_diameter = f'{data_dict["holeDiameter"]}{units}'
         self.pad_size = f'{data_dict["padSize"]}{units}'
         self.antipad_size = f'{data_dict["antipadSize"]}{units}'
+        self.plating = data_dict.get('plating', 100)
+        self.material = data_dict.get('material', 'copper')
         self.start_layer = data_dict['startLayer']
         self.stop_layer = data_dict['stopLayer']
         self.antipad_value = data_dict['antipadSize'] # Stored for void creation later
@@ -33,9 +35,12 @@ class PadstackConfig:
             paddiam=self.pad_size,
             antipaddiam=self.antipad_size,
             startlayer=self.start_layer,
-            endlayer=self.stop_layer
+            endlayer=self.stop_layer,
         )
-
+        edb_padstacks.definitions[self.name].hole_plating_ratio = self.plating
+        edb_padstacks.definitions[self.name].material = self.material
+        
+        
 # --- 2. ViaInstance Class ---
 class ViaInstance:
     """Represents a placed Via instance from the JSON data."""
