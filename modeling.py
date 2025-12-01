@@ -16,6 +16,15 @@ class PadstackConfig:
         self.stop_layer = data_dict['stopLayer']
         self.antipad_value = data_dict['antipadSize'] # Stored for void creation later
 
+        # Backdrill info
+        bd_data = data_dict.get('backdrill', {})
+        self.bd_enabled = bd_data.get('enabled', False)
+        self.bd_diameter = f'{bd_data.get("diameter", 0)}{units}'
+        self.bd_mode = bd_data.get('mode', 'layer')
+        self.bd_to_layer = bd_data.get('toLayer', '')
+        self.bd_stub = f'{bd_data.get("stub", 0)}{units}'
+        self.bd_depth = f'{bd_data.get("depth", 0)}{units}'
+
     def create_in_edb(self, edb_padstacks):
         """Creates the padstack definition in the EDB project."""
         edb_padstacks.create_padstack(
