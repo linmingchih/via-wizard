@@ -40,6 +40,6 @@ if %ERRORLEVEL% NEQ 0 (
 :: 4. Open GUI with console hidden
 echo Starting GUI...
 call .venv\Scripts\activate.bat
-start "" pythonw main.py
+start "" pythonw src\main.py
 
 endlocal
