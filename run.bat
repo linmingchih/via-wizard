@@ -1,35 +1,45 @@
 @echo off
-SETLOCAL
+setlocal EnableDelayedExpansion
 
-:: Check for Python virtual environment
-if not exist ".venv" (
-    echo Virtual environment .venv not found.
-    echo Please run install.bat first.
-    pause
-    EXIT /B 1
+:: 1. Check if uv is installed
+where uv >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo uv not found. Installing uv...
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    
+    :: Add common uv install locations to PATH for this session
+    set "PATH=%USERPROFILE%\.cargo\bin;%LOCALAPPDATA%\bin;%PATH%"
 )
 
-:: Activate venv
+:: Verify uv is available
+where uv >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo Error: uv installation failed or not found in PATH.
+    echo Please restart your terminal or install uv manually.
+    pause
+    exit /b 1
+)
+
+:: 2. Check .python-version
+if exist ".python-version" (
+    set /p PYTHON_VERSION=<.python-version
+    echo Target Python version: !PYTHON_VERSION!
+) else (
+    echo Warning: .python-version file not found.
+)
+
+:: 3. uv sync
+echo Syncing environment...
+call uv sync
+if %ERRORLEVEL% NEQ 0 (
+    echo Error: uv sync failed.
+    pause
+    exit /b 1
+)
+
+:: 4. Open GUI with console hidden
+echo Starting GUI...
 call .venv\Scripts\activate.bat
-if %ERRORLEVEL% NEQ 0 (
-    echo Failed to activate virtual environment.
-    pause
-    EXIT /B 1
-)
+start "" pythonw main.py
 
-:: Check if pywebview is installed
-python -c "import webview" >NUL 2>NUL
-if %ERRORLEVEL% NEQ 0 (
-    echo pywebview not found. Installing...
-    pip install pywebview
-    if %ERRORLEVEL% NEQ 0 (
-        echo Failed to install pywebview.
-        pause
-        EXIT /B 1
-    )
-)
-
-:: Run the application
-start "" /B pythonw main.py
-
-ENDLOCAL
+endlocal
