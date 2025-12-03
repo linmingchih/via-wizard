@@ -210,17 +210,19 @@ body {
     margin-bottom: 4px;
 }
 
+
+
 /* Stackup Table Column Widths */
 #stackup-table {
     table-layout: fixed;
 }
 
 #stackup-table th:nth-child(1) {
-    width: 25%;
+    width: 20%;
 }
 
 #stackup-table th:nth-child(2) {
-    width: 15%;
+    width: 12%;
 }
 
 #stackup-table th:nth-child(3) {
@@ -236,16 +238,15 @@ body {
 }
 
 #stackup-table th:nth-child(6) {
-    width: 12%;
+    width: 10%;
 }
 
 #stackup-table th:nth-child(7) {
-    width: 15%;
+    width: 10%;
 }
 
 #stackup-table th:nth-child(8) {
-    width: 50px;
-    text-align: center;
+    width: 15%;
 }
 
 #stackup-table td:nth-child(8) {

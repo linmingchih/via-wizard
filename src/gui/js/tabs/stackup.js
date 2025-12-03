@@ -41,7 +41,7 @@ export function createNewStackup() {
     }
 }
 
-export function createLayer(name, type, thickness, dk, df, cond, fill, isRef = false) {
+export function createLayer(name, type, thickness, dk, df, cond, fill, isRef = false, dogBone = -1) {
     return {
         name: name,
         type: type,
@@ -50,7 +50,8 @@ export function createLayer(name, type, thickness, dk, df, cond, fill, isRef = f
         df: df,
         conductivity: cond,
         fillMaterial: fill,
-        isReference: isRef
+        isReference: isRef,
+        dogBone: dogBone
     };
 }
 
@@ -72,7 +73,15 @@ export function renderStackupTable() {
         }
 
         const createInput = (key, type = 'text', disabled = false) => {
-            return `<input type="${type}" value="${layer[key] !== undefined ? layer[key] : ''}" 
+            let val = layer[key];
+            if (key === 'dogBone') {
+                if (!layer.isReference) {
+                    val = '';
+                } else if (val === undefined || val === null || val === '') {
+                    val = -1;
+                }
+            }
+            return `<input type="${type}" value="${val !== undefined ? val : ''}" 
                     onchange="window.updateLayer(${index}, '${key}', this.value)" ${disabled ? 'disabled' : ''}>`;
         };
 
@@ -95,13 +104,14 @@ export function renderStackupTable() {
             <td>${createInput('df', 'number', layer.type === 'Conductor')}</td>
             <td>${createInput('conductivity', 'number', layer.type === 'Dielectric')}</td>
             <td>${createCheckbox('isReference', layer.type !== 'Conductor')}</td>
+            <td>${createInput('dogBone', 'number', !layer.isReference)}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
 export function updateLayer(index, key, value) {
-    if (key === 'thickness' || key === 'dk' || key === 'df' || key === 'conductivity') {
+    if (key === 'thickness' || key === 'dk' || key === 'df' || key === 'conductivity' || key === 'dogBone') {
         value = parseFloat(value);
     }
     state.currentStackup[index][key] = value;
@@ -114,6 +124,12 @@ export function updateLayer(index, key, value) {
         } else {
             state.currentStackup[index].conductivity = "";
             state.currentStackup[index].isReference = false;
+        }
+        renderStackupTable();
+    }
+    if (key === 'isReference') {
+        if (value === true && (state.currentStackup[index].dogBone === undefined || state.currentStackup[index].dogBone === null)) {
+            state.currentStackup[index].dogBone = -1;
         }
         renderStackupTable();
     }
@@ -156,7 +172,8 @@ export function handlePaste(event) {
                 df: parseFloat(cols[4]) || "",
                 conductivity: parseFloat(cols[5]) || "",
                 fillMaterial: cols[6] || "",
-                isReference: cols[7] && (cols[7].toLowerCase() === 'true' || cols[7] === '1')
+                isReference: cols[7] && (cols[7].toLowerCase() === 'true' || cols[7] === '1'),
+                dogBone: !isNaN(parseFloat(cols[8])) ? parseFloat(cols[8]) : -1
             });
         }
     });
