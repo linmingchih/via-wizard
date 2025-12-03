@@ -13,6 +13,12 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 *   **Import/Export**: Load and save stackups using XML format.
 *   **Excel Integration**: Paste stackup data directly from Excel into the application.
 *   **2D Visualization**: Real-time visual representation of the layer stackup.
+*   **DogBone Void Customization**: Customize the void shape for differential pairs on reference layers.
+    *   **-1**: Default antipad size.
+    *   **0**: No void created.
+    *   **>0**: Rectangular void with specified width.
+
+    ![DogBone Void Diagram](document/dogbone.png)
 
 ### 2. Padstack Design
 *   **Customizable Geometries**: Define hole diameter, pad size, and antipad size.
