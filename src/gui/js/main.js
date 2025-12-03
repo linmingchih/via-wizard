@@ -145,7 +145,8 @@ window.openTab = function (tabId) {
     } else if (tabId === 'tab-placement') {
         placement.renderPlacementTab();
     } else if (tabId === 'tab-simulation') {
-        if (!state.isMessageWindowVisible) {
+        const msgWindow = document.getElementById('message-window');
+        if (msgWindow && msgWindow.classList.contains('hidden')) {
             toggleMessageWindow();
         }
     }
