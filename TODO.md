@@ -1,0 +1,8 @@
+- [x] 可建立晶片下方BGA 的 Differential via 的model+設定coaxial port
+- [x] antipad 是否套用dog-bone
+- [] GND via 可用角度調整建立位置
+- [] 可建立雷鑽孔+PTH via (ex:5+N+5)
+- [] 雷鑽孔可設定錐狀
+- [] 背鑽可回填樹指(可填入DK/DF)
+- [] DK/DF可以調整頻率
+- [] Differential via出線可以轉彎(EX:30度45度)
