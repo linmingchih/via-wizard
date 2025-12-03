@@ -70,9 +70,9 @@ class ViaInstance:
         center = self._to_mil(self.x, self.y)
         
         if self.type == 'gnd':
-            edb_padstacks.place_padstack(center, self.padstack_name, 'GND')
+            edb_padstacks.place(center, self.padstack_name, 'GND', is_pin=True)
         elif self.type == 'single':
-            via = edb_padstacks.place_padstack(center, self.padstack_name, 'net_'+self.name)
+            via = edb_padstacks.place(center, self.padstack_name, 'net_'+self.name, is_pin=True)
             if self.padstack.bd_enabled:
                 via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
 
@@ -86,8 +86,8 @@ class ViaInstance:
             else: # horizontal
                 n_loc = self._to_mil(self.x + pitch / 2, self.y)
                 p_loc = self._to_mil(self.x - pitch / 2, self.y)
-            via_p = edb_padstacks.place_padstack(p_loc, self.padstack_name, 'netp_'+self.name)
-            via_n = edb_padstacks.place_padstack(n_loc, self.padstack_name, 'netn_'+self.name)
+            via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+self.name, is_pin=True)
+            via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+self.name, is_pin=True)
             if self.padstack.bd_enabled:
                 via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
