@@ -92,7 +92,7 @@ class ViaInstance:
                 via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
 
-    def create_void(self, edb_modeler, layer_rects: dict):
+    def create_void(self, edb_modeler, layer_rects: dict, layer_dogbone_map: dict):
         """Creates an antipad void on reference layers for differential vias."""
         if self.type != 'differential':
             return
@@ -100,16 +100,25 @@ class ViaInstance:
         pitch = self.properties["pitch"]
         antipad_size = self.antipad_value
 
-        # Void geometry is based on pitch and antipad size
-        if self.properties["orientation"] == "horizontal":
-            width = f'{pitch}{self._units}'
-            height = f'{antipad_size}{self._units}'
-        else:
-            width = f'{antipad_size}{self._units}'
-            height = f'{pitch}{self._units}'
-
         # Create void rectangle and subtract it from all reference planes
         for layer, rect in layer_rects.items():
+            dogbone_val = layer_dogbone_map.get(layer, -1)
+            
+            # If dogbone is 0, do not create rectangle (skip void creation on this layer)
+            if dogbone_val == 0:
+                continue
+
+            # Determine antipad dimension based on dogbone value
+            # If -1, use original antipad size. If > 0, use dogbone value.
+            current_antipad_val = dogbone_val if dogbone_val > 0 else antipad_size
+            
+            if self.properties["orientation"] == "horizontal":
+                width = f'{pitch}{self._units}'
+                height = f'{current_antipad_val}{self._units}'
+            else:
+                width = f'{current_antipad_val}{self._units}'
+                height = f'{pitch}{self._units}'
+
             void = edb_modeler.create_rectangle(
                 layer,
                 center_point=self._to_mil(self.x, self.y),
@@ -255,8 +264,9 @@ class EdbProject:
             self.via_instances.append(via)
 
         # 2. Create Voids (Must be done before placing vias or traces are placed)
+        layer_dogbone_map = {l['name']: l.get('dogBone', -1) for l in self.data['stackup']}
         for via in self.via_instances:
-            via.create_void(self.edb.modeler, self.layer_rects)
+            via.create_void(self.edb.modeler, self.layer_rects, layer_dogbone_map)
 
         # 3. Place Vias (Padstack placements)
         for via in self.via_instances:
