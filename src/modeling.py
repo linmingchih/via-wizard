@@ -134,38 +134,46 @@ class ViaInstance:
         if self.type == 'gnd':
             return
 
-        feed_in_layer = self.properties['feedIn']
-        feed_in_width = self._get_feed_width('feedInWidth')
-        feed_out_layer = self.properties['feedOut']
-        feed_out_width = self._get_feed_width('feedOutWidth')
+        feed_in_layer = self.properties.get('feedIn')
+        feed_out_layer = self.properties.get('feedOut')
 
         if self.type == 'single':
             # Input Port
-            in_pts = self._get_feed_points(self.feed_paths['feedIn'][0])
-            trace_in = create_trace_func(in_pts, feed_in_layer, feed_in_width, 'net_'+self.name)
-            edb_hfss.create_wave_port(trace_in, in_pts[-1], self.name + '_IN')
+            if feed_in_layer:
+                feed_in_width = self._get_feed_width('feedInWidth')
+                in_pts = self._get_feed_points(self.feed_paths['feedIn'][0])
+                trace_in = create_trace_func(in_pts, feed_in_layer, feed_in_width, 'net_'+self.name)
+                edb_hfss.create_wave_port(trace_in, in_pts[-1], self.name + '_IN')
+            
             # Output Port
-            out_pts = self._get_feed_points(self.feed_paths['feedOut'][0])
-            trace_out = create_trace_func(out_pts, feed_out_layer, feed_out_width, 'net_'+self.name)
-            edb_hfss.create_wave_port(trace_out, out_pts[-1], self.name + '_OUT')
+            if feed_out_layer:
+                feed_out_width = self._get_feed_width('feedOutWidth')
+                out_pts = self._get_feed_points(self.feed_paths['feedOut'][0])
+                trace_out = create_trace_func(out_pts, feed_out_layer, feed_out_width, 'net_'+self.name)
+                edb_hfss.create_wave_port(trace_out, out_pts[-1], self.name + '_OUT')
 
         elif self.type == 'differential':
             # Input Port
-            in_pts_p = self._get_feed_points(self.feed_paths['feedIn'][0])
-            in_pts_n = self._get_feed_points(self.feed_paths['feedIn'][1])
-            trace_in_p = create_trace_func(in_pts_p, feed_in_layer, feed_in_width, 'netp_'+self.name)
-            trace_in_n = create_trace_func(in_pts_n, feed_in_layer, feed_in_width, 'netn_'+self.name)
-            edb_hfss.create_differential_wave_port(
-                trace_in_p, in_pts_p[-1], trace_in_n, in_pts_n[-1], self.name + '_IN'
-            )
+            if feed_in_layer:
+                feed_in_width = self._get_feed_width('feedInWidth')
+                in_pts_p = self._get_feed_points(self.feed_paths['feedIn'][0])
+                in_pts_n = self._get_feed_points(self.feed_paths['feedIn'][1])
+                trace_in_p = create_trace_func(in_pts_p, feed_in_layer, feed_in_width, 'netp_'+self.name)
+                trace_in_n = create_trace_func(in_pts_n, feed_in_layer, feed_in_width, 'netn_'+self.name)
+                edb_hfss.create_differential_wave_port(
+                    trace_in_p, in_pts_p[-1], trace_in_n, in_pts_n[-1], self.name + '_IN'
+                )
+            
             # Output Port
-            out_pts_p = self._get_feed_points(self.feed_paths['feedOut'][0])
-            out_pts_n = self._get_feed_points(self.feed_paths['feedOut'][1])
-            trace_out_p = create_trace_func(out_pts_p, feed_out_layer, feed_out_width, 'netp_'+self.name)
-            trace_out_n = create_trace_func(out_pts_n, feed_out_layer, feed_out_width, 'netn_'+self.name)
-            edb_hfss.create_differential_wave_port(
-                trace_out_p, out_pts_p[-1], trace_out_n, out_pts_n[-1], self.name + '_OUT'
-            )
+            if feed_out_layer:
+                feed_out_width = self._get_feed_width('feedOutWidth')
+                out_pts_p = self._get_feed_points(self.feed_paths['feedOut'][0])
+                out_pts_n = self._get_feed_points(self.feed_paths['feedOut'][1])
+                trace_out_p = create_trace_func(out_pts_p, feed_out_layer, feed_out_width, 'netp_'+self.name)
+                trace_out_n = create_trace_func(out_pts_n, feed_out_layer, feed_out_width, 'netn_'+self.name)
+                edb_hfss.create_differential_wave_port(
+                    trace_out_p, out_pts_p[-1], trace_out_n, out_pts_n[-1], self.name + '_OUT'
+                )
 
 # --- 3. EdbProject Class (Facade/Controller) ---
 class EdbProject:
