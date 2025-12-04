@@ -135,7 +135,7 @@ export class PlacementCanvas {
                 this.drawFeedLine(inst.x, inst.y, inst.properties.feedOutWidth, inst.properties.arrowDirection, false, boardW, boardH, inst);
             }
             this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection, effectiveAntipad);
-        } else if (inst.type === 'differential') {
+        } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
             const pitch = inst.properties.pitch || 1.0;
             const isVert = inst.properties.orientation === 'vertical';
             const dx = isVert ? 0 : pitch / 2;
@@ -176,6 +176,71 @@ export class PlacementCanvas {
             this.ctx.lineTo(inst.x + dx, inst.y + dy);
             this.ctx.stroke();
             this.ctx.setLineDash([]);
+
+            // Draw GND Vias for diff_gnd
+            if (inst.type === 'diff_gnd') {
+                const gndR = inst.properties.gndRadius || 15;
+                const gndN = inst.properties.gndCount || 3;
+                const gndStep = inst.properties.gndAngleStep || 30;
+                const gndPIndex = inst.properties.gndPadstackIndex;
+
+                let gndDiam = 10;
+                let gndHole = 6;
+                let gndColor = '#998877';
+
+                if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
+                    const gp = state.padstacks[gndPIndex];
+                    gndDiam = gp.padSize || 10;
+                    gndHole = gp.holeDiameter || 6;
+                }
+
+                // Calculate angles
+                const angles = [];
+                if (gndN % 2 !== 0) { // Odd
+                    angles.push(0);
+                    for (let i = 1; i <= (gndN - 1) / 2; i++) {
+                        angles.push(i * gndStep);
+                        angles.push(-i * gndStep);
+                    }
+                } else { // Even
+                    for (let i = 1; i <= gndN / 2; i++) {
+                        const angle = (2 * i - 1) * gndStep / 2;
+                        angles.push(angle);
+                        angles.push(-angle);
+                    }
+                }
+
+                // Signal Via Centers
+                // 1. "Left" / "Bottom" (negative offset)
+                const s1 = { x: inst.x - dx, y: inst.y - dy };
+                // 2. "Right" / "Top" (positive offset)
+                const s2 = { x: inst.x + dx, y: inst.y + dy };
+
+                // Outward axes (in degrees)
+                // Horizontal: Left via (-dx) outward is -x (180), Right via (+dx) outward is +x (0)
+                // Vertical: Bottom via (-dy) outward is -y (270/-90), Top via (+dy) outward is +y (90)
+                let angleBase1, angleBase2;
+
+                if (isVert) {
+                    angleBase1 = 270; // Bottom via, outward is down
+                    angleBase2 = 90;  // Top via, outward is up
+                } else {
+                    angleBase1 = 180; // Left via, outward is left
+                    angleBase2 = 0;   // Right via, outward is right
+                }
+
+                const drawGnds = (center, baseAngle) => {
+                    angles.forEach(a => {
+                        const rad = (baseAngle + a) * Math.PI / 180;
+                        const gx = center.x + gndR * Math.cos(rad);
+                        const gy = center.y + gndR * Math.sin(rad);
+                        this.drawVia(gx, gy, gndDiam, gndColor, gndHole, null, 0);
+                    });
+                };
+
+                drawGnds(s1, angleBase1);
+                drawGnds(s2, angleBase2);
+            }
         }
     }
 

@@ -80,7 +80,7 @@ export function placeInstance(x, y) {
     let name = nameInput ? nameInput.value.trim() : "";
 
     if (!name) {
-        const prefix = state.placementMode === 'differential' ? 'DiffPair' : (state.placementMode === 'gnd' ? 'GND' : 'Via');
+        const prefix = (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') ? 'DiffPair' : (state.placementMode === 'gnd' ? 'GND' : 'Via');
         let count = 1;
         while (state.placedInstances.some(i => i.name === `${prefix}_${count}`)) {
             count++;
@@ -107,7 +107,7 @@ export function placeInstance(x, y) {
         properties: {}
     };
 
-    if (state.placementMode === 'differential') {
+    if (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') {
         newInst.properties.pitch = parseFloat(document.getElementById('diff-pitch').value);
         const orient = document.querySelector('input[name="diff-orient"]:checked').value;
         newInst.properties.orientation = orient;
@@ -118,6 +118,13 @@ export function placeInstance(x, y) {
         newInst.properties.feedOut = "";
         newInst.properties.feedOutWidth = 5;
         newInst.properties.feedOutSpacing = 5;
+
+        if (state.placementMode === 'diff_gnd') {
+            newInst.properties.gndRadius = 15;
+            newInst.properties.gndCount = 3;
+            newInst.properties.gndAngleStep = 30;
+            newInst.properties.gndPadstackIndex = parseInt(padstackIndex); // Default to same padstack
+        }
     } else if (state.placementMode === 'single') {
         newInst.properties.arrowDirection = 0;
         newInst.properties.feedIn = "";
@@ -192,7 +199,7 @@ export function renderPropertiesPanel() {
         </tr>
     `;
 
-    if (inst.type === 'differential') {
+    if (inst.type === 'differential' || inst.type === 'diff_gnd') {
         const conductorLayers = state.currentStackup.filter(l => l.type === 'Conductor');
 
         // Helper for Layer Select
@@ -255,6 +262,41 @@ export function renderPropertiesPanel() {
         // Feed Out
         html += createLayerRow('feedOut', 'Feed Out Layer');
         html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out');
+
+        if (inst.type === 'diff_gnd') {
+            // GND Settings
+            html += `
+                <tr><td colspan="2" style="background:#333; font-weight:bold;">GND Via Settings</td></tr>
+                <tr>
+                    <td>GND Radius</td>
+                    <td><input type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
+                </tr>
+                <tr>
+                    <td>GND Count</td>
+                    <td><input type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
+                </tr>
+                <tr>
+                    <td>Angle Step (deg)</td>
+                    <td><input type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
+                </tr>
+            `;
+
+            // GND Padstack Selector
+            const padstackOpts = state.padstacks.map((p, i) =>
+                `<option value="${i}" ${i === inst.properties.gndPadstackIndex ? 'selected' : ''}>${p.name}</option>`
+            ).join('');
+
+            html += `
+                <tr>
+                    <td>GND Padstack</td>
+                    <td>
+                        <select onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
+                            ${padstackOpts}
+                        </select>
+                    </td>
+                </tr>
+            `;
+        }
 
     } else if (inst.type === 'single') {
         const conductorLayers = state.currentStackup.filter(l => l.type === 'Conductor');
@@ -321,8 +363,10 @@ export function updateInstanceProp(id, key, value) {
     } else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing') {
+        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'gndCount' || key === 'gndAngleStep') {
             inst.properties[key] = parseFloat(value);
+        } else if (key === 'gndPadstackIndex') {
+            inst.properties[key] = parseInt(value);
         } else {
             inst.properties[key] = value;
         }
@@ -426,7 +470,7 @@ export function calculateFeedPaths(inst, boardW, boardH) {
         paths.feedIn.push(getPath(true));
         paths.feedOut.push(getPath(false));
 
-    } else if (inst.type === 'differential') {
+    } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
         const pitch = inst.properties.pitch || 1.0;
         const isVert = inst.properties.orientation === 'vertical';
         const dx = isVert ? 0 : pitch / 2;

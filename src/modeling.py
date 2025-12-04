@@ -44,100 +44,11 @@ class PadstackConfig:
 # --- 2. ViaInstance Class ---
 class ViaInstance:
     """Represents a placed Via instance from the JSON data."""
-    def __init__(self, data_dict: dict, padstack_config: PadstackConfig, units: str, to_mil_func):
+    def __init__(self, data_dict: dict, padstack_config: PadstackConfig, units: str, to_mil_func, all_padstack_configs: dict = None):
         self.name = data_dict["name"]
         self.type = data_dict['type']
         self.x = data_dict["x"]
         self.y = data_dict["y"]
-        self.properties = data_dict.get('properties', {})
-        self.feed_paths = data_dict.get('feedPaths', {})
-        self.padstack_name = padstack_config.name
-        self.antipad_value = padstack_config.antipad_value
-        self._units = units
-        self._to_mil = to_mil_func
-        self.padstack = padstack_config
-        self.placed_pins = []
-
-    def _get_feed_points(self, path_data):
-        """Converts path coordinates to unit strings."""
-        return [self._to_mil(pt['x'], pt['y']) for pt in path_data]
-
-    def _get_feed_width(self, key):
-        """Gets feed width as a string with units."""
-        return f"{self.properties[key]}{self._units}"
-
-    def place_via(self, edb_padstacks):
-        """Places the via instance(s) in the EDB project based on its type."""
-        center = self._to_mil(self.x, self.y)
-        
-        if self.type == 'gnd':
-            via = edb_padstacks.place(center, self.padstack_name, 'GND', is_pin=True)
-            self.placed_pins.append(via)
-        elif self.type == 'single':
-            via = edb_padstacks.place(center, self.padstack_name, 'net_'+self.name, is_pin=True)
-            self.placed_pins.append(via)
-            if self.padstack.bd_enabled:
-                via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
-
-
-        elif self.type == 'differential':
-            pitch = self.properties["pitch"]
-            # Calculate P and N locations based on orientation
-            if self.properties["orientation"] == "vertical":
-                n_loc = self._to_mil(self.x, self.y + pitch / 2)
-                p_loc = self._to_mil(self.x, self.y - pitch / 2)
-            else: # horizontal
-                n_loc = self._to_mil(self.x + pitch / 2, self.y)
-                p_loc = self._to_mil(self.x - pitch / 2, self.y)
-            via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+self.name, is_pin=True)
-            via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+self.name, is_pin=True)
-            self.placed_pins.append(via_p)
-            self.placed_pins.append(via_n)
-            if self.padstack.bd_enabled:
-                via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
-                via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
-
-    def create_void(self, edb_modeler, layer_rects: dict, layer_dogbone_map: dict):
-        """Creates an antipad void on reference layers for differential vias."""
-        if self.type != 'differential':
-            return
-        
-        pitch = self.properties["pitch"]
-        antipad_size = self.antipad_value
-
-        # Create void rectangle and subtract it from all reference planes
-        for layer, rect in layer_rects.items():
-            dogbone_val = layer_dogbone_map.get(layer, -1)
-            
-            # If dogbone is 0, do not create rectangle (skip void creation on this layer)
-            if dogbone_val == 0:
-                continue
-
-            # Determine antipad dimension based on dogbone value
-            # If -1, use original antipad size. If > 0, use dogbone value.
-            current_antipad_val = dogbone_val if dogbone_val > 0 else antipad_size
-            
-            if self.properties["orientation"] == "horizontal":
-                width = f'{pitch}{self._units}'
-                height = f'{current_antipad_val}{self._units}'
-            else:
-                width = f'{current_antipad_val}{self._units}'
-                height = f'{pitch}{self._units}'
-
-            void = edb_modeler.create_rectangle(
-                layer,
-                center_point=self._to_mil(self.x, self.y),
-                net_name = 'GND',
-                width=width,
-                height=height,
-                representation_type="CenterWidthHeight"
-            )
-            edb_modeler.add_void(rect, void)
-
-    def create_ports_and_traces(self, create_trace_func, edb_hfss):
-        """Creates traces and ports for non-GND vias."""
-        if self.type == 'gnd':
-            return
 
         feed_in_layer = self.properties.get('feedIn')
         feed_out_layer = self.properties.get('feedOut')
@@ -227,53 +138,11 @@ class EdbProject:
                 continue
             
             material_name = f'm_{layer["name"]}'
-            layer_type = 'signal' if layer['type'] == 'Conductor' else 'dielectric'
-
-            # 1. Create Materials
-            if layer['type'] == 'Conductor':
-                self.edb.materials.add_conductor_material(material_name, layer['conductivity'])
-            else:
-                self.edb.materials.add_dielectric_material(material_name, layer['dk'], layer['df'])
-            
-            # 2. Create Layers
-            self.edb.stackup.add_layer_bottom(
-                name=layer['name'],
-                layer_type=layer_type,
-                material=material_name,
-                thickness=f"{layer['thickness']}{self.units}",
-            )
-            
-            # 3. Create Reference Rectangles
-            if layer["isReference"] == True:
-                rect = self.edb.modeler.create_rectangle(
-                    layer['name'],
-                    net_name='GND',
-                    center_point=(0, 0),
-                    width=f'{self.data["boardWidth"]}{self.units}',
-                    height=f'{self.data["boardHeight"]}{self.units}',
-                    representation_type="CenterWidthHeight"
-                )
-                self.layer_rects[layer['name']] = rect
-
-    def create_padstacks(self):
-        """Creates padstack definitions and stores them in a dictionary."""
-        for padstack_data in self.data['padstacks']:
-            config = PadstackConfig(padstack_data, self.units)
-            config.create_in_edb(self.edb.padstacks)
-            self.padstack_configs[config.name] = config
-
-    def process_via_instances(self):
-        """Creates via objects, processes voids, places vias, and creates ports/traces."""
-        padstack_list = self.data['padstacks']
-        
-        # 1. Instantiate ViaInstance objects
-        for via_data in self.data['placedInstances']:
-            padstack_index = via_data['padstackIndex']
-            # Find the corresponding PadstackConfig object using the index
-            padstack_name = padstack_list[padstack_index]['name']
             padstack_config = self.padstack_configs[padstack_name]
             
-            via = ViaInstance(via_data, padstack_config, self.units, self._to_mil)
+            via = ViaInstance(via_data, padstack_config, self.units, self._to_mil, self.padstack_configs)
+            # Hack: Store the padstack list in the via instance so we can resolve indices
+            via.padstack_list_data = padstack_list
             self.via_instances.append(via)
 
         # 2. Create Voids (Must be done before placing vias or traces are placed)
