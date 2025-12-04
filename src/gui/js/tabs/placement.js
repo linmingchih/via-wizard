@@ -66,12 +66,12 @@ export function updatePlacementMode() {
         if (r.checked) state.placementMode = r.value;
     });
 
-    const diffSettings = document.getElementById('diff-settings');
-    if (state.placementMode === 'differential') {
-        diffSettings.classList.remove('hidden');
-    } else {
-        diffSettings.classList.add('hidden');
-    }
+    // const diffSettings = document.getElementById('diff-settings');
+    // if (state.placementMode === 'differential') {
+    //     diffSettings.classList.remove('hidden');
+    // } else {
+    //     diffSettings.classList.add('hidden');
+    // }
 }
 
 export function placeInstance(x, y) {
