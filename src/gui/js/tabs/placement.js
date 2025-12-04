@@ -108,8 +108,11 @@ export function placeInstance(x, y) {
     };
 
     if (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') {
-        newInst.properties.pitch = parseFloat(document.getElementById('diff-pitch').value);
-        const orient = document.querySelector('input[name="diff-orient"]:checked').value;
+        const pitchInput = document.getElementById('diff-pitch');
+        newInst.properties.pitch = pitchInput ? parseFloat(pitchInput.value) : 40;
+
+        const orientInput = document.querySelector('input[name="diff-orient"]:checked');
+        const orient = orientInput ? orientInput.value : 'horizontal';
         newInst.properties.orientation = orient;
         newInst.properties.arrowDirection = (orient === 'vertical') ? 1 : 0;
         newInst.properties.feedIn = "";
