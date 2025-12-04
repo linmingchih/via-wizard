@@ -32,11 +32,14 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
     *   **Differential Pair**: Place differential pairs with configurable pitch and orientation.
     *   **GND Via**: Place grounding vias.
 *   **Grid System**: Snap-to-grid functionality for precise alignment.
+*   **Property Table**: View and edit instance properties (Name, Coordinates, Differential Pair settings) in a structured table.
+*   **Dynamic Sorting**: Placed instances are automatically sorted alphabetically for easy management.
 
 ### 4. Simulation Export
 *   **AEDB Generation**: Export your entire design (stackup, padstacks, placed instances) to an Ansys AEDB project (`.aedb`).
 *   **Version Control**: Specify the target AEDB version (default: 2024.1).
 *   **Automated Modeling**: The tool automatically handles the creation of materials, layers, padstacks, and vias in the AEDB file.
+*   **Component Creation**: Automatically groups vias into components based on naming convention (`component.pin`) for easier integration in Ansys.
 
 ## Prerequisites
 
