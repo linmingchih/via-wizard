@@ -250,6 +250,103 @@ class ViaWizardAPI:
             traceback.print_exc()
         return False
 
+    def flatten_project_data(self, data):
+        import math
+        import copy
+        
+        flattened_data = copy.deepcopy(data)
+        new_instances = []
+        
+        for inst in flattened_data['placedInstances']:
+            if inst['type'] == 'diff_gnd':
+                # Create the differential pair instance
+                diff_inst = copy.deepcopy(inst)
+                diff_inst['type'] = 'differential'
+                new_instances.append(diff_inst)
+                
+                # Generate GND vias
+                props = inst.get('properties', {})
+                pitch = float(props.get('pitch', 0))
+                orientation = props.get('orientation', 'horizontal')
+                gnd_radius = float(props.get('gndRadius', 0))
+                gnd_count = int(props.get('gndCount', 0))
+                gnd_angle_step = float(props.get('gndAngleStep', 0))
+                gnd_padstack_index = int(props.get('gndPadstackIndex', 0))
+                
+                cx = inst['x']
+                cy = inst['y']
+                
+                # Determine signal via locations relative to center
+                # Vertical: N top (+y), P bottom (-y)
+                # Horizontal: N right (+x), P left (-x)
+                
+                if orientation == 'vertical':
+                    p_center = (cx, cy - pitch/2)
+                    n_center = (cx, cy + pitch/2)
+                    p_base_angle = 270
+                    n_base_angle = 90
+                else: # horizontal
+                    p_center = (cx - pitch/2, cy)
+                    n_center = (cx + pitch/2, cy)
+                    p_base_angle = 180
+                    n_base_angle = 0
+                    
+                def generate_angles(base_deg, count, step_deg):
+                    angles = []
+                    if count % 2 == 1: # Odd
+                        angles.append(base_deg)
+                        for i in range(1, (count // 2) + 1):
+                            angles.append(base_deg + i * step_deg)
+                            angles.append(base_deg - i * step_deg)
+                    else: # Even
+                        for i in range(1, (count // 2) + 1):
+                            offset = (i - 0.5) * step_deg
+                            angles.append(base_deg + offset)
+                            angles.append(base_deg - offset)
+                    return angles
+
+                # Generate GNDs for P
+                p_angles = generate_angles(p_base_angle, gnd_count, gnd_angle_step)
+                for i, ang_deg in enumerate(p_angles):
+                    ang_rad = math.radians(ang_deg)
+                    gx = p_center[0] + gnd_radius * math.cos(ang_rad)
+                    gy = p_center[1] + gnd_radius * math.sin(ang_rad)
+                    
+                    gnd_inst = {
+                        "id": int(f"{inst['id']}1{i}"), # Fake ID
+                        "name": f"{inst['name']}_GND_P_{i+1}",
+                        "type": "gnd",
+                        "x": gx,
+                        "y": gy,
+                        "padstackIndex": gnd_padstack_index,
+                        "properties": {}
+                    }
+                    new_instances.append(gnd_inst)
+                    
+                # Generate GNDs for N
+                n_angles = generate_angles(n_base_angle, gnd_count, gnd_angle_step)
+                for i, ang_deg in enumerate(n_angles):
+                    ang_rad = math.radians(ang_deg)
+                    gx = n_center[0] + gnd_radius * math.cos(ang_rad)
+                    gy = n_center[1] + gnd_radius * math.sin(ang_rad)
+                    
+                    gnd_inst = {
+                        "id": int(f"{inst['id']}2{i}"), # Fake ID
+                        "name": f"{inst['name']}_GND_N_{i+1}",
+                        "type": "gnd",
+                        "x": gx,
+                        "y": gy,
+                        "padstackIndex": gnd_padstack_index,
+                        "properties": {}
+                    }
+                    new_instances.append(gnd_inst)
+
+            else:
+                new_instances.append(inst)
+                
+        flattened_data['placedInstances'] = new_instances
+        return flattened_data
+
     def export_aedb(self, data, version):
         print(f"API: export_aedb called with version {version}")
         try:
@@ -264,6 +361,16 @@ class ViaWizardAPI:
                     json.dump(data, f, indent=4)
                 self.log_message(f"Project saved to {file_path}")
                 
+                # Flatten Data
+                self.log_message("Flattening project data...")
+                flattened_data = self.flatten_project_data(data)
+                
+                # Save Flattened JSON
+                flatten_path = os.path.splitext(file_path)[0] + '_flatten.json'
+                with open(flatten_path, 'w') as f:
+                    json.dump(flattened_data, f, indent=4)
+                self.log_message(f"Flattened project saved to {flatten_path}")
+                
                 # Call modeling.py
                 import subprocess
                 import sys
@@ -271,12 +378,12 @@ class ViaWizardAPI:
                 # Assume modeling.py is in the same directory as api.py
                 script_path = os.path.join(os.path.dirname(__file__), 'modeling.py')
                 
-                self.log_message(f"Calling modeling.py with {file_path} and version {version}")
+                self.log_message(f"Calling modeling.py with {flatten_path} and version {version}")
                 
                 def run_export():
                     try:
                         process = subprocess.Popen(
-                            [sys.executable, script_path, file_path, version],
+                            [sys.executable, script_path, flatten_path, version],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             text=True
@@ -289,12 +396,12 @@ class ViaWizardAPI:
                             self.log_message(f"Export Error:\n{stderr}")
                             
                         # Calculate expected AEDB path
-                        aedb_path = os.path.splitext(file_path)[0] + '.aedb'
+                        aedb_path = os.path.splitext(flatten_path)[0] + '.aedb'
                         self.log_message(f"AEDB File generated at: {aedb_path}")
                         
                     except Exception as e:
                         self.log_message(f"Export process failed: {e}")
-
+                        
                 import threading
                 t = threading.Thread(target=run_export)
                 t.start()
