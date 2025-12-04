@@ -30,6 +30,7 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 *   **Placement Modes**:
     *   **Single Via**: Place individual signal vias.
     *   **Differential Pair**: Place differential pairs with configurable pitch and orientation.
+    *   **Diff Pair w/ GND**: Place differential pairs with surrounding ground vias.
     *   **GND Via**: Place grounding vias.
 *   **Grid System**: Snap-to-grid functionality for precise alignment.
 *   **Property Table**: View and edit instance properties (Name, Coordinates, Differential Pair settings) in a structured table.
