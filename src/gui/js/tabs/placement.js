@@ -141,7 +141,15 @@ export function renderPlacedList() {
     const list = document.getElementById('placed-list');
     if (!list) return;
     list.innerHTML = '';
-    state.placedInstances.forEach(inst => {
+
+    // Sort instances by name for display
+    const sortedInstances = [...state.placedInstances].sort((a, b) => {
+        const nameA = (a.name || a.type).toString();
+        const nameB = (b.name || b.type).toString();
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    sortedInstances.forEach(inst => {
         const li = document.createElement('li');
         const pName = state.padstacks[inst.padstackIndex]?.name || 'Unknown';
         li.textContent = `${inst.name || inst.type} (${pName}) @ [${inst.x}, ${inst.y}]`;
