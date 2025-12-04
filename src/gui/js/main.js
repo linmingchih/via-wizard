@@ -1,7 +1,7 @@
 
 import { state, resetProjectData } from './state.js';
 import { api } from './api.js';
-import { addMessage, clearMessages, toggleMessageWindow } from './utils.js';
+import { addMessage, clearMessages, toggleMessageWindow, copyMessages } from './utils.js';
 import * as stackup from './tabs/stackup.js';
 import * as padstack from './tabs/padstack.js';
 import * as placement from './tabs/placement.js';
@@ -10,6 +10,7 @@ import * as simulation from './tabs/simulation.js';
 // Expose functions to window for HTML onclick handlers
 window.toggleMessageWindow = toggleMessageWindow;
 window.clearMessages = clearMessages;
+window.copyMessages = copyMessages;
 window.addMessage = addMessage;
 
 // Stackup

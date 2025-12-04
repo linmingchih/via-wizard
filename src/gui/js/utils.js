@@ -18,6 +18,17 @@ export function clearMessages() {
     if (msgBody) msgBody.innerHTML = '';
 }
 
+export function copyMessages() {
+    const msgBody = document.getElementById('message-body');
+    if (!msgBody) return;
+    const text = msgBody.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        addMessage("Messages copied to clipboard.");
+    }).catch(err => {
+        addMessage("Failed to copy messages: " + err);
+    });
+}
+
 export function toggleMessageWindow() {
     const msgWindow = document.getElementById('message-window');
     if (!msgWindow) return;
