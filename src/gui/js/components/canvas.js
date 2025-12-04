@@ -546,7 +546,7 @@ export class PlacementCanvas {
                     if (typeof inst.properties.arrowDirection === 'undefined') inst.properties.arrowDirection = 0;
                     inst.properties.arrowDirection = (inst.properties.arrowDirection + 1) % 4;
                     this.draw();
-                } else if (inst.type === 'differential') {
+                } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
                     if (typeof inst.properties.arrowDirection === 'undefined') {
                         inst.properties.arrowDirection = (inst.properties.orientation === 'vertical') ? 1 : 0;
                     }
@@ -572,7 +572,7 @@ export class PlacementCanvas {
                 if (maxD > 0) radius = maxD / 2;
             }
 
-            if (inst.type === 'differential') {
+            if (inst.type === 'differential' || inst.type === 'diff_gnd') {
                 const pitch = inst.properties.pitch || 1.0;
                 const isVert = inst.properties.orientation === 'vertical';
                 const dx = isVert ? 0 : pitch / 2;
