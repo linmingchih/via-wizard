@@ -163,92 +163,127 @@ export function renderPropertiesPanel() {
     const inst = state.placedInstances.find(i => i.id === state.selectedInstanceId);
     if (!inst) return;
 
-    let html = `
-        <div class="form-group">
-            <label>Name:</label>
-            <input type="text" value="${inst.name || ''}" onchange="window.updateInstanceProp(${inst.id}, 'name', this.value)">
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <div class="form-group" style="flex: 1;">
-                <label>X:</label>
-                <input type="number" value="${inst.x}" oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" style="width: 50%;">
-            </div>
-            <div class="form-group" style="flex: 1;">
-                <label>Y:</label>
-                <input type="number" value="${inst.y}" oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" style="width: 50%;">
-            </div>
-        </div>
+    let html = `<table class="prop-table">`;
+
+    // Name
+    html += `
+        <tr>
+            <td>Name</td>
+            <td><input type="text" value="${inst.name || ''}" onchange="window.updateInstanceProp(${inst.id}, 'name', this.value)"></td>
+        </tr>
+    `;
+
+    // Position (X, Y)
+    html += `
+        <tr>
+            <td>Position (X, Y)</td>
+            <td style="display: flex; gap: 5px;">
+                <input type="number" value="${inst.x}" oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
+                <input type="number" value="${inst.y}" oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
+            </td>
+        </tr>
     `;
 
     if (inst.type === 'differential') {
         const conductorLayers = state.currentStackup.filter(l => l.type === 'Conductor');
-        const createLayerSelectWithWidthAndSpacing = (prop, label, widthProp, spacingProp) => {
+
+        // Helper for Layer Select
+        const createLayerRow = (prop, label) => {
             const val = inst.properties[prop] || "";
+            const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
+            return `
+                <tr>
+                    <td>${label}</td>
+                    <td>
+                        <select onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
+                            <option value="">-- Select --</option>
+                            ${opts}
+                        </select>
+                    </td>
+                </tr>
+            `;
+        };
+
+        // Helper for Width/Spacing Row
+        const createWidthSpacingRow = (widthProp, spacingProp, labelPrefix) => {
             const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 5;
             const spacingVal = inst.properties[spacingProp] !== undefined ? inst.properties[spacingProp] : 5;
-            const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
             return `
-               <div class="form-group">
-                   <label>${label}:</label>
-                   <select onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
-                       <option value="">-- Select --</option>
-                       ${opts}
-                   </select>
-               </div>
-               <div style="display: flex; gap: 10px;">
-                   <div class="form-group" style="flex: 1;">
-                       <label>Width:</label>
-                       <input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)" style="width: 60px;">
-                   </div>
-                   <div class="form-group" style="flex: 1;">
-                       <label>Spacing:</label>
-                       <input type="number" value="${spacingVal}" oninput="window.updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" style="width: 60px;">
-                   </div>
-               </div>
+                <tr>
+                    <td>${labelPrefix} W/S</td>
+                    <td style="display: flex; gap: 5px;">
+                        <input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)" title="Width">
+                        <input type="number" value="${spacingVal}" oninput="window.updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" title="Spacing">
+                    </td>
+                </tr>
             `;
         };
 
+        // Pitch
         html += `
-            <div class="form-group">
-                <label>Pitch:</label>
-                <input type="number" value="${inst.properties.pitch}" oninput="window.updateInstanceProp(${inst.id}, 'pitch', this.value)">
-            </div>
-            <div class="form-group">
-                <label>Orientation:</label>
-                <select onchange="window.updateInstanceProp(${inst.id}, 'orientation', this.value)">
-                    <option value="horizontal" ${inst.properties.orientation === 'horizontal' ? 'selected' : ''}>Horizontal</option>
-                    <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
-                </select>
-            </div>
-            ${createLayerSelectWithWidthAndSpacing('feedIn', 'Feed In', 'feedInWidth', 'feedInSpacing')}
-            ${createLayerSelectWithWidthAndSpacing('feedOut', 'Feed Out', 'feedOutWidth', 'feedOutSpacing')}
+            <tr>
+                <td>Pitch</td>
+                <td><input type="number" value="${inst.properties.pitch}" oninput="window.updateInstanceProp(${inst.id}, 'pitch', this.value)"></td>
+            </tr>
         `;
+
+        // Orientation
+        html += `
+            <tr>
+                <td>Orientation</td>
+                <td>
+                    <select onchange="window.updateInstanceProp(${inst.id}, 'orientation', this.value)">
+                        <option value="horizontal" ${inst.properties.orientation === 'horizontal' ? 'selected' : ''}>Horizontal</option>
+                        <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
+                    </select>
+                </td>
+            </tr>
+        `;
+
+        // Feed In
+        html += createLayerRow('feedIn', 'Feed In Layer');
+        html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In');
+
+        // Feed Out
+        html += createLayerRow('feedOut', 'Feed Out Layer');
+        html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out');
+
     } else if (inst.type === 'single') {
         const conductorLayers = state.currentStackup.filter(l => l.type === 'Conductor');
-        const createLayerSelectWithWidth = (prop, label, widthProp) => {
+
+        const createLayerRow = (prop, label) => {
             const val = inst.properties[prop] || "";
-            const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 15;
             const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
             return `
-               <div class="form-group">
-                   <label>${label}:</label>
-                   <select onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
-                       <option value="">-- Select --</option>
-                       ${opts}
-                   </select>
-               </div>
-               <div class="form-group">
-                   <label>${label} Width:</label>
-                   <input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)">
-               </div>
+                <tr>
+                    <td>${label}</td>
+                    <td>
+                        <select onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
+                            <option value="">-- Select --</option>
+                            ${opts}
+                        </select>
+                    </td>
+                </tr>
             `;
         };
 
-        html += `
-            ${createLayerSelectWithWidth('feedIn', 'Feed In', 'feedInWidth')}
-            ${createLayerSelectWithWidth('feedOut', 'Feed Out', 'feedOutWidth')}
-        `;
+        const createWidthRow = (widthProp, label) => {
+            const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 15;
+            return `
+                <tr>
+                    <td>${label}</td>
+                    <td><input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)"></td>
+                </tr>
+             `;
+        };
+
+        html += createLayerRow('feedIn', 'Feed In Layer');
+        html += createWidthRow('feedInWidth', 'Feed In Width');
+        html += createLayerRow('feedOut', 'Feed Out Layer');
+        html += createWidthRow('feedOutWidth', 'Feed Out Width');
     }
+
+    html += `</table>`;
 
     html += `
         <div style="margin-top: 15px; text-align: right;">
@@ -258,7 +293,6 @@ export function renderPropertiesPanel() {
 
     panel.innerHTML = html;
 }
-
 export function updateInstanceProp(id, key, value) {
     const inst = state.placedInstances.find(i => i.id === id);
     if (!inst) return;
