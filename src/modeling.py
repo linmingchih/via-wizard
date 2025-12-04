@@ -56,6 +56,7 @@ class ViaInstance:
         self._units = units
         self._to_mil = to_mil_func
         self.padstack = padstack_config
+        self.placed_pins = []
 
     def _get_feed_points(self, path_data):
         """Converts path coordinates to unit strings."""
@@ -70,9 +71,11 @@ class ViaInstance:
         center = self._to_mil(self.x, self.y)
         
         if self.type == 'gnd':
-            edb_padstacks.place(center, self.padstack_name, 'GND', is_pin=True)
+            via = edb_padstacks.place(center, self.padstack_name, 'GND', is_pin=True)
+            self.placed_pins.append(via)
         elif self.type == 'single':
             via = edb_padstacks.place(center, self.padstack_name, 'net_'+self.name, is_pin=True)
+            self.placed_pins.append(via)
             if self.padstack.bd_enabled:
                 via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
 
@@ -88,6 +91,8 @@ class ViaInstance:
                 p_loc = self._to_mil(self.x - pitch / 2, self.y)
             via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+self.name, is_pin=True)
             via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+self.name, is_pin=True)
+            self.placed_pins.append(via_p)
+            self.placed_pins.append(via_n)
             if self.padstack.bd_enabled:
                 via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
@@ -288,6 +293,30 @@ class EdbProject:
         # 4. Create Traces and Ports
         for via in self.via_instances:
             via.create_ports_and_traces(self._create_trace_partial, self.edb.hfss)
+
+        # 5. Create Components from Pins
+        self.create_components_from_pins()
+
+    def create_components_from_pins(self):
+        """Groups pins by component name and creates components."""
+        component_groups = {}
+        for via in self.via_instances:
+            # Check if via name implies a component (contains '.')
+            if '.' in via.name:
+                component_name = via.name.split('.')[0]
+                if component_name not in component_groups:
+                    component_groups[component_name] = []
+                component_groups[component_name].extend(via.placed_pins)
+        
+        for comp_name, pins in component_groups.items():
+            if pins:
+                try:
+                    # Ensure pins are unique before creating component
+                    unique_pins = list(set(pins))
+                    self.edb.components.create_component_from_pins(unique_pins, comp_name)
+                    print(f"Created component '{comp_name}' from {len(unique_pins)} pins.")
+                except Exception as e:
+                    print(f"Error creating component '{comp_name}': {e}")
 
     def run_modeling(self):
         """Executes the full modeling workflow."""
