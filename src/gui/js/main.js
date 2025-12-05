@@ -1,7 +1,7 @@
 
 import { state, resetProjectData } from './state.js';
 import { api } from './api.js';
-import { addMessage, clearMessages, toggleMessageWindow, copyMessages } from './utils.js';
+import { addMessage, clearMessages, toggleMessageWindow, copyMessages, calculateFeedPaths } from './utils.js';
 import * as stackup from './tabs/stackup.js';
 import * as padstack from './tabs/padstack.js';
 import * as placement from './tabs/placement.js';
@@ -40,35 +40,42 @@ window.exportAEDB = simulation.exportAEDB;
 
 // API
 window.loadProject = async () => {
-    const data = await api.loadProject();
-    if (data) {
-        if (data.stackup) state.currentStackup = data.stackup;
-        if (data.units) state.currentUnits = data.units;
-        if (data.padstacks) state.padstacks = data.padstacks;
-        if (data.placedInstances) state.placedInstances = data.placedInstances;
-        if (data.canvasGridSpacing) state.canvasState.gridSpacing = data.canvasGridSpacing;
+    addMessage("Load Project clicked...");
+    try {
+        const data = await api.loadProject();
+        addMessage(`API returned data: ${data ? 'yes' : 'no'}`);
+        if (data) {
+            if (data.stackup) state.currentStackup = data.stackup;
+            if (data.units) state.currentUnits = data.units;
+            if (data.padstacks) state.padstacks = data.padstacks;
+            if (data.placedInstances) state.placedInstances = data.placedInstances;
+            if (data.canvasGridSpacing) state.canvasState.gridSpacing = data.canvasGridSpacing;
 
-        // Update UI
-        stackup.renderStackupTable();
-        stackup.render2DView();
-        padstack.renderPadstackList();
-        placement.renderPlacementTab();
+            // Update UI
+            stackup.renderStackupTable();
+            stackup.render2DView();
+            padstack.renderPadstackList();
+            placement.renderPlacementTab();
 
-        // Restore units UI
-        const radio = document.querySelector(`input[name="units"][value="${state.currentUnits}"]`);
-        if (radio) radio.checked = true;
+            // Restore units UI
+            const radio = document.querySelector(`input[name="units"][value="${state.currentUnits}"]`);
+            if (radio) radio.checked = true;
 
-        // Restore board size
-        if (data.boardWidth) {
-            const wInput = document.getElementById('canvas-width');
-            if (wInput) wInput.value = data.boardWidth;
+            // Restore board size
+            if (data.boardWidth) {
+                const wInput = document.getElementById('canvas-width');
+                if (wInput) wInput.value = data.boardWidth;
+            }
+            if (data.boardHeight) {
+                const hInput = document.getElementById('canvas-height');
+                if (hInput) hInput.value = data.boardHeight;
+            }
+
+            addMessage("Project loaded successfully.");
         }
-        if (data.boardHeight) {
-            const hInput = document.getElementById('canvas-height');
-            if (hInput) hInput.value = data.boardHeight;
-        }
-
-        addMessage("Project loaded successfully.");
+    } catch (err) {
+        addMessage(`Error loading project: ${err}`);
+        console.error(err);
     }
 };
 
@@ -79,7 +86,7 @@ window.saveProject = async () => {
     const boardH = hInput ? (parseFloat(hInput.value) || 200) : 200;
 
     const instancesWithPaths = state.placedInstances.map(inst => {
-        const feedPaths = placement.calculateFeedPaths(inst, boardW, boardH);
+        const feedPaths = calculateFeedPaths(inst, boardW, boardH);
         return { ...inst, feedPaths };
     });
 

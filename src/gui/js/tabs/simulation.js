@@ -1,8 +1,7 @@
 
 import { state } from '../state.js';
 import { api } from '../api.js';
-import { addMessage } from '../utils.js';
-import { calculateFeedPaths } from './placement.js';
+import { addMessage, calculateFeedPaths } from '../utils.js';
 
 export async function exportAEDB() {
     const versionInput = document.getElementById('aedb-version');

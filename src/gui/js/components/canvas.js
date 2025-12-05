@@ -1,6 +1,6 @@
 
 import { state } from '../state.js';
-import { addMessage } from '../utils.js';
+import { addMessage, calculateFeedPaths } from '../utils.js';
 
 export class PlacementCanvas {
     constructor(canvasId, wrapperId, callbacks) {
@@ -332,110 +332,49 @@ export class PlacementCanvas {
         if (!layerName) return;
 
         const width = isFeedIn ? inst.properties.feedInWidth : inst.properties.feedOutWidth;
-        const spacing = isFeedIn ? inst.properties.feedInSpacing : inst.properties.feedOutSpacing;
         if (!width || width <= 0) return;
 
-        const tracePitch = width + spacing;
-        const arrowDir = inst.properties.arrowDirection || 0;
-        const pitch = inst.properties.pitch || 1.0;
-        const isVert = inst.properties.orientation === 'vertical';
-        const dx = isVert ? 0 : pitch / 2;
-        const dy = isVert ? pitch / 2 : 0;
-        const v1 = { x: inst.x - dx, y: inst.y - dy };
-        const v2 = { x: inst.x + dx, y: inst.y + dy };
+        // Use shared calculation
+        const pathsObj = calculateFeedPaths(inst, boardW, boardH);
+        const paths = isFeedIn ? pathsObj.feedIn : pathsObj.feedOut;
 
         this.ctx.beginPath();
         this.ctx.strokeStyle = '#cd7f32';
         this.ctx.lineWidth = width;
         this.ctx.globalAlpha = 0.5;
 
-        const drawPoly = (pts) => {
-            this.ctx.moveTo(pts[0].x, pts[0].y);
-            for (let i = 1; i < pts.length; i++) this.ctx.lineTo(pts[i].x, pts[i].y);
-        };
-
-        let vias = [v1, v2];
-        let lblX = inst.x;
-        let lblY = inst.y;
-
-        if (arrowDir === 0) { // Up
-            vias.sort((a, b) => a.x - b.x);
-            const t1x = inst.x - tracePitch / 2;
-            const t2x = inst.x + tracePitch / 2;
-            const edgeY = isFeedIn ? -boardH / 2 : boardH / 2;
-            lblY = (inst.y + edgeY) / 2;
-
-            if (isFeedIn) {
-                const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
-                const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
-                drawPoly([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
-                drawPoly([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
-            } else {
-                const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
-                const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
-                drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
-                drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
+        paths.forEach(path => {
+            if (path.length > 0) {
+                this.ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) {
+                    this.ctx.lineTo(path[i].x, path[i].y);
+                }
             }
-        } else if (arrowDir === 1) { // Right
-            vias.sort((a, b) => a.y - b.y);
-            const t1y = inst.y - tracePitch / 2;
-            const t2y = inst.y + tracePitch / 2;
-            const edgeX = isFeedIn ? -boardW / 2 : boardW / 2;
-            lblX = (inst.x + edgeX) / 2;
-
-            if (isFeedIn) {
-                const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
-                const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
-                drawPoly([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
-                drawPoly([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
-            } else {
-                const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
-                const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
-                drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
-                drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
-            }
-        } else if (arrowDir === 2) { // Down
-            vias.sort((a, b) => a.x - b.x);
-            const t1x = inst.x - tracePitch / 2;
-            const t2x = inst.x + tracePitch / 2;
-            const edgeY = isFeedIn ? boardH / 2 : -boardH / 2;
-            lblY = (inst.y + edgeY) / 2;
-
-            if (isFeedIn) {
-                const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
-                const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
-                drawPoly([{ x: t1x, y: edgeY }, { x: t1x, y: k1y }, { x: vias[0].x, y: vias[0].y }]);
-                drawPoly([{ x: t2x, y: edgeY }, { x: t2x, y: k2y }, { x: vias[1].x, y: vias[1].y }]);
-            } else {
-                const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
-                const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
-                drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
-                drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
-            }
-        } else if (arrowDir === 3) { // Left
-            vias.sort((a, b) => a.y - b.y);
-            const t1y = inst.y - tracePitch / 2;
-            const t2y = inst.y + tracePitch / 2;
-            const edgeX = isFeedIn ? boardW / 2 : -boardW / 2;
-            lblX = (inst.x + edgeX) / 2;
-
-            if (isFeedIn) {
-                const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
-                const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
-                drawPoly([{ x: edgeX, y: t1y }, { x: k1x, y: t1y }, { x: vias[0].x, y: vias[0].y }]);
-                drawPoly([{ x: edgeX, y: t2y }, { x: k2x, y: t2y }, { x: vias[1].x, y: vias[1].y }]);
-            } else {
-                const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
-                const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
-                drawPoly([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
-                drawPoly([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
-            }
-        }
+        });
 
         this.ctx.stroke();
         this.ctx.globalAlpha = 1.0;
 
-        this.drawLabel(lblX, lblY, layerName);
+        // Draw Label (approximate location at end of path?)
+        // Or just use the instance location + offset like before?
+        // The old logic calculated label position based on edge.
+        // Let's use the last point of the first path as a hint, or just keep it simple.
+        // The old logic:
+        // lblX = (inst.x + edgeX) / 2;
+        // With complex paths, maybe just put it near the via?
+        // Or at the midpoint of the path?
+        // Let's stick to the instance location for now or try to find a good spot.
+        // Actually, let's just use the midpoint of the first segment of the first path for simplicity,
+        // or just keep the label near the via.
+
+        // Let's try to replicate the old label logic if possible, or just place it at the end of the path.
+        if (paths.length > 0 && paths[0].length > 0) {
+            const p = paths[0];
+            const lastPt = p[p.length - 1];
+            // Midpoint of the whole path is hard to define for polyline.
+            // Let's just put it at the end.
+            this.drawLabel(lastPt.x, lastPt.y, layerName);
+        }
     }
 
     drawLabel(x, y, text) {

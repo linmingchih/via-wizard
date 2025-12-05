@@ -1,7 +1,7 @@
 
 import { state } from '../state.js';
 import { PlacementCanvas } from '../components/canvas.js';
-import { addMessage } from '../utils.js';
+import { addMessage, calculateFeedPaths } from '../utils.js';
 
 let canvasInstance = null;
 
@@ -262,9 +262,51 @@ export function renderPropertiesPanel() {
         html += createLayerRow('feedIn', 'Feed In Layer');
         html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In');
 
+        // Feed In Geometry
+        html += `
+            <tr><td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">Feed In Geometry</td></tr>
+            <tr>
+                <td>d1 (Straight)</td>
+                <td><input type="number" value="${inst.properties.feedInD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD1', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Alpha (Turn Deg)</td>
+                <td><input type="number" value="${inst.properties.feedInAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInAlpha', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Radius (R)</td>
+                <td><input type="number" value="${inst.properties.feedInR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInR', this.value)"></td>
+            </tr>
+            <tr>
+                <td>d2 (End Len)</td>
+                <td><input type="number" placeholder="Auto" value="${inst.properties.feedInD2 !== undefined ? inst.properties.feedInD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD2', this.value)"></td>
+            </tr>
+        `;
+
         // Feed Out
         html += createLayerRow('feedOut', 'Feed Out Layer');
         html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out');
+
+        // Feed Out Geometry
+        html += `
+            <tr><td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">Feed Out Geometry</td></tr>
+            <tr>
+                <td>d1 (Straight)</td>
+                <td><input type="number" value="${inst.properties.feedOutD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD1', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Alpha (Turn Deg)</td>
+                <td><input type="number" value="${inst.properties.feedOutAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutAlpha', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Radius (R)</td>
+                <td><input type="number" value="${inst.properties.feedOutR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutR', this.value)"></td>
+            </tr>
+            <tr>
+                <td>d2 (End Len)</td>
+                <td><input type="number" placeholder="Auto" value="${inst.properties.feedOutD2 !== undefined ? inst.properties.feedOutD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD2', this.value)"></td>
+            </tr>
+        `;
 
         if (inst.type === 'diff_gnd') {
             // GND Settings
@@ -366,8 +408,11 @@ export function updateInstanceProp(id, key, value) {
     } else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'gndCount' || key === 'gndAngleStep') {
+        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'gndCount' || key === 'gndAngleStep' || key === 'feedInD1' || key === 'feedInAlpha' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutAlpha' || key === 'feedOutR') {
             inst.properties[key] = parseFloat(value);
+        } else if (key === 'feedInD2' || key === 'feedOutD2') {
+            // Allow empty string for "Auto"
+            inst.properties[key] = value === "" ? undefined : parseFloat(value);
         } else if (key === 'gndPadstackIndex') {
             inst.properties[key] = parseInt(value);
         } else {
@@ -449,124 +494,4 @@ export function fitCanvas() {
     if (canvasInstance) canvasInstance.draw();
 }
 
-export function calculateFeedPaths(inst, boardW, boardH) {
-    const paths = { feedIn: [], feedOut: [] };
 
-    if (inst.type === 'single') {
-        const arrowDir = inst.properties.arrowDirection || 0;
-
-        const getPath = (isFeedIn) => {
-            let targetDir = arrowDir;
-            if (isFeedIn) targetDir = (arrowDir + 2) % 4;
-
-            let edgeX = inst.x;
-            let edgeY = inst.y;
-
-            if (targetDir === 0) edgeY = boardH / 2;
-            else if (targetDir === 1) edgeX = boardW / 2;
-            else if (targetDir === 2) edgeY = -boardH / 2;
-            else if (targetDir === 3) edgeX = -boardW / 2;
-
-            return [{ x: inst.x, y: inst.y }, { x: edgeX, y: edgeY }];
-        };
-
-        paths.feedIn.push(getPath(true));
-        paths.feedOut.push(getPath(false));
-
-    } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
-        const pitch = inst.properties.pitch || 1.0;
-        const isVert = inst.properties.orientation === 'vertical';
-        const dx = isVert ? 0 : pitch / 2;
-        const dy = isVert ? pitch / 2 : 0;
-        const v1 = { x: inst.x - dx, y: inst.y - dy };
-        const v2 = { x: inst.x + dx, y: inst.y + dy };
-
-        const getDiffPaths = (isFeedIn) => {
-            const width = isFeedIn ? inst.properties.feedInWidth : inst.properties.feedOutWidth;
-            const spacing = isFeedIn ? inst.properties.feedInSpacing : inst.properties.feedOutSpacing;
-            if (!width || width <= 0) return [];
-
-            const tracePitch = width + spacing;
-            const arrowDir = inst.properties.arrowDirection || 0;
-
-            let vias = [v1, v2];
-            let resultPaths = [];
-
-            if (arrowDir === 0) { // Up
-                vias.sort((a, b) => a.x - b.x);
-                const t1x = inst.x - tracePitch / 2;
-                const t2x = inst.x + tracePitch / 2;
-                const edgeY = isFeedIn ? -boardH / 2 : boardH / 2;
-
-                if (isFeedIn) {
-                    const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
-                    const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
-                } else {
-                    const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
-                    const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
-                }
-            } else if (arrowDir === 1) { // Right
-                vias.sort((a, b) => a.y - b.y);
-                const t1y = inst.y - tracePitch / 2;
-                const t2y = inst.y + tracePitch / 2;
-                const edgeX = isFeedIn ? -boardW / 2 : boardW / 2;
-
-                if (isFeedIn) {
-                    const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
-                    const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
-                } else {
-                    const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
-                    const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
-                }
-            } else if (arrowDir === 2) { // Down
-                vias.sort((a, b) => a.x - b.x);
-                const t1x = inst.x - tracePitch / 2;
-                const t2x = inst.x + tracePitch / 2;
-                const edgeY = isFeedIn ? boardH / 2 : -boardH / 2;
-
-                if (isFeedIn) {
-                    const k1y = vias[0].y + Math.abs(vias[0].x - t1x);
-                    const k2y = vias[1].y + Math.abs(vias[1].x - t2x);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
-                } else {
-                    const k1y = vias[0].y - Math.abs(vias[0].x - t1x);
-                    const k2y = vias[1].y - Math.abs(vias[1].x - t2x);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: t1x, y: k1y }, { x: t1x, y: edgeY }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: t2x, y: k2y }, { x: t2x, y: edgeY }]);
-                }
-            } else if (arrowDir === 3) { // Left
-                vias.sort((a, b) => a.y - b.y);
-                const t1y = inst.y - tracePitch / 2;
-                const t2y = inst.y + tracePitch / 2;
-                const edgeX = isFeedIn ? boardW / 2 : -boardW / 2;
-
-                if (isFeedIn) {
-                    const k1x = vias[0].x + Math.abs(vias[0].y - t1y);
-                    const k2x = vias[1].x + Math.abs(vias[1].y - t2y);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
-                } else {
-                    const k1x = vias[0].x - Math.abs(vias[0].y - t1y);
-                    const k2x = vias[1].x - Math.abs(vias[1].y - t2y);
-                    resultPaths.push([{ x: vias[0].x, y: vias[0].y }, { x: k1x, y: t1y }, { x: edgeX, y: t1y }]);
-                    resultPaths.push([{ x: vias[1].x, y: vias[1].y }, { x: k2x, y: t2y }, { x: edgeX, y: t2y }]);
-                }
-            }
-            return resultPaths;
-        };
-
-        paths.feedIn = getDiffPaths(true);
-        paths.feedOut = getDiffPaths(false);
-    }
-
-    return paths;
-}
