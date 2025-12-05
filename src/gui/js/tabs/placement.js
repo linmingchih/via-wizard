@@ -4,6 +4,7 @@ import { PlacementCanvas } from '../components/canvas.js';
 import { addMessage, calculateFeedPaths } from '../utils.js';
 
 let canvasInstance = null;
+let clipboardInstance = null;
 
 export function renderPlacementTab() {
     const padstackSelect = document.getElementById('placement-padstack-select');
@@ -50,13 +51,26 @@ export function renderPlacementTab() {
 }
 
 // Global key listener for delete
+// Global key listener for shortcuts
 window.addEventListener('keydown', (e) => {
+    // Ignore if typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
+    const placementTab = document.getElementById('tab-placement');
+    if (!placementTab || !placementTab.classList.contains('active')) {
+        return;
+    }
+
     if (e.key === 'Delete' && state.selectedInstanceId) {
-        // Only delete if we are in the placement tab (or it's active)
-        const placementTab = document.getElementById('tab-placement');
-        if (placementTab && placementTab.classList.contains('active')) {
-            deleteInstance(state.selectedInstanceId);
+        deleteInstance(state.selectedInstanceId);
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (state.selectedInstanceId) {
+            copyInstance(state.selectedInstanceId);
         }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        pasteInstance();
     }
 });
 
@@ -445,6 +459,42 @@ export function deleteInstance(id) {
     if (canvasInstance) canvasInstance.draw();
     renderPlacedList();
     renderPropertiesPanel();
+}
+
+function copyInstance(id) {
+    const inst = state.placedInstances.find(i => i.id === id);
+    if (inst) {
+        clipboardInstance = JSON.parse(JSON.stringify(inst));
+        // console.log("Copied:", clipboardInstance);
+    }
+}
+
+function pasteInstance() {
+    if (!clipboardInstance) return;
+
+    const newInst = JSON.parse(JSON.stringify(clipboardInstance));
+    newInst.id = Date.now();
+
+    // Generate unique name
+    let baseName = newInst.name;
+    // Simple logic to avoid infinite growth of "_copy_copy..."
+    // If it already ends in _copy, maybe strip it? Or just append.
+    // Let's just append _copy and then ensure uniqueness.
+    let newName = `${baseName}_copy`;
+    let count = 1;
+    while (state.placedInstances.some(i => i.name === newName)) {
+        newName = `${baseName}_copy${count}`;
+        count++;
+    }
+    newInst.name = newName;
+
+    // Offset
+    const offset = state.canvasState.gridSpacing || 10;
+    newInst.x += offset;
+    newInst.y += offset;
+
+    state.placedInstances.push(newInst);
+    selectInstance(newInst.id);
 }
 
 export function updateGrid() {
