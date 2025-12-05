@@ -274,7 +274,7 @@ export function renderPropertiesPanel() {
                 <td><input type="number" value="${inst.properties.feedInD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD1', this.value)"></td>
             </tr>
             <tr class="feed-in-rows">
-                <td>Alpha (Turn Deg)</td>
+                <td>Turn Deg</td>
                 <td><input type="number" value="${inst.properties.feedInAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInAlpha', this.value)"></td>
             </tr>
             <tr class="feed-in-rows">
@@ -303,7 +303,7 @@ export function renderPropertiesPanel() {
                 <td><input type="number" value="${inst.properties.feedOutD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD1', this.value)"></td>
             </tr>
             <tr class="feed-out-rows">
-                <td>Alpha (Turn Deg)</td>
+                <td>Turn Deg</td>
                 <td><input type="number" value="${inst.properties.feedOutAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutAlpha', this.value)"></td>
             </tr>
             <tr class="feed-out-rows">
