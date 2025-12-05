@@ -299,6 +299,9 @@ export class PlacementCanvas {
     }
 
     drawFeedLine(x, y, width, direction, isFeedIn, boardW, boardH, inst) {
+        const layerName = isFeedIn ? inst.properties.feedIn : inst.properties.feedOut;
+        if (!layerName) return;
+
         if (!width || width <= 0 || !boardW || !boardH) return;
 
         this.ctx.beginPath();
@@ -321,13 +324,13 @@ export class PlacementCanvas {
         this.ctx.stroke();
         this.ctx.globalAlpha = 1.0;
 
-        const layerName = isFeedIn ? inst.properties.feedIn : inst.properties.feedOut;
-        if (layerName) {
-            this.drawLabel((x + edgeX) / 2, (y + edgeY) / 2, layerName);
-        }
+        this.drawLabel((x + edgeX) / 2, (y + edgeY) / 2, layerName);
     }
 
     drawDiffFeeds(inst, isFeedIn, boardW, boardH) {
+        const layerName = isFeedIn ? inst.properties.feedIn : inst.properties.feedOut;
+        if (!layerName) return;
+
         const width = isFeedIn ? inst.properties.feedInWidth : inst.properties.feedOutWidth;
         const spacing = isFeedIn ? inst.properties.feedInSpacing : inst.properties.feedOutSpacing;
         if (!width || width <= 0) return;
@@ -432,10 +435,7 @@ export class PlacementCanvas {
         this.ctx.stroke();
         this.ctx.globalAlpha = 1.0;
 
-        const layerName = isFeedIn ? inst.properties.feedIn : inst.properties.feedOut;
-        if (layerName) {
-            this.drawLabel(lblX, lblY, layerName);
-        }
+        this.drawLabel(lblX, lblY, layerName);
     }
 
     drawLabel(x, y, text) {
