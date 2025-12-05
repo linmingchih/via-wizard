@@ -206,11 +206,11 @@ export function renderPropertiesPanel() {
         const conductorLayers = state.currentStackup.filter(l => l.type === 'Conductor');
 
         // Helper for Layer Select
-        const createLayerRow = (prop, label) => {
+        const createLayerRow = (prop, label, rowClass = '') => {
             const val = inst.properties[prop] || "";
             const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
             return `
-                <tr>
+                <tr class="${rowClass}">
                     <td>${label}</td>
                     <td>
                         <select onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
@@ -223,11 +223,11 @@ export function renderPropertiesPanel() {
         };
 
         // Helper for Width/Spacing Row
-        const createWidthSpacingRow = (widthProp, spacingProp, labelPrefix) => {
+        const createWidthSpacingRow = (widthProp, spacingProp, labelPrefix, rowClass = '') => {
             const widthVal = inst.properties[widthProp] !== undefined ? inst.properties[widthProp] : 5;
             const spacingVal = inst.properties[spacingProp] !== undefined ? inst.properties[spacingProp] : 5;
             return `
-                <tr>
+                <tr class="${rowClass}">
                     <td>${labelPrefix} W/S</td>
                     <td style="display: flex; gap: 5px;">
                         <input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)" title="Width">
@@ -260,24 +260,28 @@ export function renderPropertiesPanel() {
 
         // Feed In Geometry
         html += `
-            <tr><td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">Feed In Geometry</td></tr>
+            <tr onclick="window.togglePropSection('feed-in-rows', this)" style="cursor:pointer; user-select:none;">
+                <td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">
+                    <span class="toggle-icon">▼</span> Feed In Geometry
+                </td>
+            </tr>
         `;
-        html += createLayerRow('feedIn', 'Feed In Layer');
-        html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In');
+        html += createLayerRow('feedIn', 'Feed In Layer', 'feed-in-rows');
+        html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In', 'feed-in-rows');
         html += `
-            <tr>
+            <tr class="feed-in-rows">
                 <td>d1 (Straight)</td>
                 <td><input type="number" value="${inst.properties.feedInD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD1', this.value)"></td>
             </tr>
-            <tr>
+            <tr class="feed-in-rows">
                 <td>Alpha (Turn Deg)</td>
                 <td><input type="number" value="${inst.properties.feedInAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInAlpha', this.value)"></td>
             </tr>
-            <tr>
+            <tr class="feed-in-rows">
                 <td>Radius (R)</td>
                 <td><input type="number" value="${inst.properties.feedInR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInR', this.value)"></td>
             </tr>
-            <tr>
+            <tr class="feed-in-rows">
                 <td>d2 (End Len)</td>
                 <td><input type="number" placeholder="Auto" value="${inst.properties.feedInD2 !== undefined ? inst.properties.feedInD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD2', this.value)"></td>
             </tr>
@@ -285,24 +289,28 @@ export function renderPropertiesPanel() {
 
         // Feed Out Geometry
         html += `
-            <tr><td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">Feed Out Geometry</td></tr>
+            <tr onclick="window.togglePropSection('feed-out-rows', this)" style="cursor:pointer; user-select:none;">
+                <td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">
+                    <span class="toggle-icon">▼</span> Feed Out Geometry
+                </td>
+            </tr>
         `;
-        html += createLayerRow('feedOut', 'Feed Out Layer');
-        html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out');
+        html += createLayerRow('feedOut', 'Feed Out Layer', 'feed-out-rows');
+        html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out', 'feed-out-rows');
         html += `
-            <tr>
+            <tr class="feed-out-rows">
                 <td>d1 (Straight)</td>
                 <td><input type="number" value="${inst.properties.feedOutD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD1', this.value)"></td>
             </tr>
-            <tr>
+            <tr class="feed-out-rows">
                 <td>Alpha (Turn Deg)</td>
                 <td><input type="number" value="${inst.properties.feedOutAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutAlpha', this.value)"></td>
             </tr>
-            <tr>
+            <tr class="feed-out-rows">
                 <td>Radius (R)</td>
                 <td><input type="number" value="${inst.properties.feedOutR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutR', this.value)"></td>
             </tr>
-            <tr>
+            <tr class="feed-out-rows">
                 <td>d2 (End Len)</td>
                 <td><input type="number" placeholder="Auto" value="${inst.properties.feedOutD2 !== undefined ? inst.properties.feedOutD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD2', this.value)"></td>
             </tr>
@@ -311,16 +319,20 @@ export function renderPropertiesPanel() {
         if (inst.type === 'diff_gnd') {
             // GND Settings
             html += `
-                <tr><td colspan="2" style="background:#333; font-weight:bold;">GND Via Settings</td></tr>
-                <tr>
+                <tr onclick="window.togglePropSection('gnd-rows', this)" style="cursor:pointer; user-select:none;">
+                    <td colspan="2" style="background:#333; font-weight:bold;">
+                        <span class="toggle-icon">▼</span> GND Via Settings
+                    </td>
+                </tr>
+                <tr class="gnd-rows">
                     <td>GND Radius</td>
                     <td><input type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
                 </tr>
-                <tr>
+                <tr class="gnd-rows">
                     <td>GND Count</td>
                     <td><input type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
                 </tr>
-                <tr>
+                <tr class="gnd-rows">
                     <td>Angle Step (deg)</td>
                     <td><input type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
                 </tr>
@@ -332,7 +344,7 @@ export function renderPropertiesPanel() {
             ).join('');
 
             html += `
-                <tr>
+                <tr class="gnd-rows">
                     <td>GND Padstack</td>
                     <td>
                         <select onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
@@ -495,3 +507,12 @@ export function fitCanvas() {
 }
 
 
+
+window.togglePropSection = function (className, header) {
+    const rows = document.querySelectorAll('.' + className);
+    if (rows.length === 0) return;
+    const isHidden = rows[0].style.display === 'none';
+    rows.forEach(r => r.style.display = isHidden ? '' : 'none');
+    const icon = header.querySelector('.toggle-icon');
+    if (icon) icon.textContent = isHidden ? '▼' : '▶';
+};
