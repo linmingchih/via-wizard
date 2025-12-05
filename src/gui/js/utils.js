@@ -128,13 +128,22 @@ export function calculateFeedPaths(inst, boardW, boardH) {
 
             if (turnAngle !== 0 && radius > 0) {
                 const alphaRad = turnAngle * Math.PI / 180;
+                const turnDir = Math.sign(turnAngle); // 1 for Left, -1 for Right
                 const steps = 10; // Discretization
                 const stepAngle = alphaRad / steps;
 
-                const cx = currX + radius * Math.cos(currDir + Math.PI / 2);
-                const cy = currY + radius * Math.sin(currDir + Math.PI / 2);
+                // Center of curvature
+                // Left turn (alpha > 0): Center is Left of current dir (+90 deg)
+                // Right turn (alpha < 0): Center is Right of current dir (-90 deg)
+                const cx = currX + radius * Math.cos(currDir + turnDir * Math.PI / 2);
+                const cy = currY + radius * Math.sin(currDir + turnDir * Math.PI / 2);
 
-                const startAngle = currDir - Math.PI / 2;
+                // Start angle from center
+                // Vector P -> C is length R at (currDir + turnDir * 90)
+                // Vector C -> P is opposite: (currDir + turnDir * 90) + 180
+                // = currDir + turnDir * 90 - 180 (or + 180)
+                // = currDir - turnDir * 90
+                const startAngle = currDir - turnDir * Math.PI / 2;
 
                 for (let i = 1; i <= steps; i++) {
                     const theta = startAngle + i * stepAngle;
