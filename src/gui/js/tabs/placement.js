@@ -258,13 +258,13 @@ export function renderPropertiesPanel() {
             </tr>
         `;
 
-        // Feed In
-        html += createLayerRow('feedIn', 'Feed In Layer');
-        html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In');
-
         // Feed In Geometry
         html += `
             <tr><td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">Feed In Geometry</td></tr>
+        `;
+        html += createLayerRow('feedIn', 'Feed In Layer');
+        html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In');
+        html += `
             <tr>
                 <td>d1 (Straight)</td>
                 <td><input type="number" value="${inst.properties.feedInD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD1', this.value)"></td>
@@ -283,13 +283,13 @@ export function renderPropertiesPanel() {
             </tr>
         `;
 
-        // Feed Out
-        html += createLayerRow('feedOut', 'Feed Out Layer');
-        html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out');
-
         // Feed Out Geometry
         html += `
             <tr><td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">Feed Out Geometry</td></tr>
+        `;
+        html += createLayerRow('feedOut', 'Feed Out Layer');
+        html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out');
+        html += `
             <tr>
                 <td>d1 (Straight)</td>
                 <td><input type="number" value="${inst.properties.feedOutD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD1', this.value)"></td>
