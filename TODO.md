@@ -5,4 +5,4 @@
 - [ ] 雷鑽孔可設定錐狀
 - [ ] 背鑽可回填樹指(可填入DK/DF)
 - [ ] DK/DF可以調整頻率
-- [ ] Differential via出線可以轉彎(EX:30度45度)
+- [x] Differential via出線可以轉彎(EX:30度45度)

@@ -33,8 +33,10 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
     *   **Diff Pair w/ GND**: Place differential pairs with surrounding ground vias.
     *   **GND Via**: Place grounding vias.
 *   **Grid System**: Snap-to-grid functionality for precise alignment.
-*   **Property Table**: View and edit instance properties (Name, Coordinates, Differential Pair settings) in a structured table.
+*   **Property Table**: View and edit instance properties in a structured table with **collapsible sections** for better organization.
+*   **Advanced Fan-out Control**: Configure fan-out geometry for differential pairs, including turn angles (e.g., 45 degrees), straight lengths, and radii.
 *   **Dynamic Sorting**: Placed instances are automatically sorted alphabetically for easy management.
+*   **Optimized UI**: The "Placed Instances" panel is optimized for better visibility of properties.
 
 ### 4. Simulation Export
 *   **AEDB Generation**: Export your entire design (stackup, padstacks, placed instances) to an Ansys AEDB project (`.aedb`).
