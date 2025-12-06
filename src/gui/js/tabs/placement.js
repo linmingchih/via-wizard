@@ -17,20 +17,24 @@ export function renderPlacementTab() {
 
     updatePlacementMode();
 
-    if (!canvasInstance) {
-        canvasInstance = new PlacementCanvas('placement-canvas', 'canvas-wrapper', {
-            onSelect: (id) => selectInstance(id),
-            onPlace: (x, y) => placeInstance(x, y),
-            onUpdate: () => {
-                renderPlacedList();
-                renderPropertiesPanel();
-            }
-        });
-        // Expose draw method for other modules (like padstack updates)
-        window.drawPlacementCanvas = () => canvasInstance.draw();
-    } else {
-        canvasInstance.resize();
-        canvasInstance.draw();
+    const wrapper = document.getElementById('canvas-wrapper');
+    if (wrapper && wrapper.clientWidth > 0 && wrapper.clientHeight > 0) {
+        if (!canvasInstance) {
+            canvasInstance = new PlacementCanvas('placement-canvas', 'canvas-wrapper', {
+                onSelect: (id) => selectInstance(id),
+                onPlace: (x, y) => placeInstance(x, y),
+                onUpdate: () => {
+                    renderPlacedList();
+                    renderPropertiesPanel();
+                }
+            });
+            // Expose draw method for other modules (like padstack updates)
+            window.drawPlacementCanvas = () => canvasInstance.draw();
+            fitCanvas();
+        } else {
+            canvasInstance.resize();
+            canvasInstance.draw();
+        }
     }
 
     renderPlacedList();
