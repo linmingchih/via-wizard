@@ -23,7 +23,8 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 ### 2. Padstack Design
 *   **Customizable Geometries**: Define hole diameter, pad size, and antipad size.
 *   **Material Selection**: Choose from standard materials like Copper, Gold, or Aluminum.
-*   **Backdrill Settings**: (Work in Progress) Configure backdrill parameters for signal integrity optimization.
+*   **Backdrill Settings**: Configure backdrill parameters (Depth, Stub, To Layer) for signal integrity optimization.
+*   **Fill Via Support**: Enable "Fill" for backdrilled vias with custom dielectric properties (Dk, Df). The fill via is automatically created and placed with the specified backdrill diameter and material.
 
 ### 3. Interactive Placement
 *   **Canvas Editor**: Interactively place vias on a virtual PCB canvas.
@@ -37,6 +38,7 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 *   **Advanced Fan-out Control**: Configure fan-out geometry for differential pairs, including turn angles (e.g., 45 degrees), straight lengths, and radii.
 *   **Dynamic Sorting**: Placed instances are automatically sorted alphabetically for easy management.
 *   **Optimized UI**: The "Placed Instances" panel is optimized for better visibility of properties.
+*   **Smart Copy/Paste**: Copy and paste instances with automatic name incrementing (e.g., `Via_1` -> `Via_2`) to ensure unique naming.
 
 ### 4. Simulation Export
 *   **AEDB Generation**: Export your entire design (stackup, padstacks, placed instances) to an Ansys AEDB project (`.aedb`).
