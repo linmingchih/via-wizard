@@ -16,6 +16,7 @@ export function renderPlacementTab() {
     }
 
     updatePlacementMode();
+    updateGrid();
 
     const wrapper = document.getElementById('canvas-wrapper');
     if (wrapper && wrapper.clientWidth > 0 && wrapper.clientHeight > 0) {
