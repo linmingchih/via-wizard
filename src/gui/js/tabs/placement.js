@@ -525,21 +525,35 @@ export function updateGrid() {
 }
 
 export function fitCanvas() {
-    if (state.placedInstances.length === 0) {
+    const boardW = parseFloat(document.getElementById('canvas-width')?.value) || 0;
+    const boardH = parseFloat(document.getElementById('canvas-height')?.value) || 0;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    // Include Board
+    if (boardW > 0 && boardH > 0) {
+        minX = -boardW / 2;
+        maxX = boardW / 2;
+        minY = -boardH / 2;
+        maxY = boardH / 2;
+    }
+
+    // Include Instances
+    if (state.placedInstances.length > 0) {
+        state.placedInstances.forEach(inst => {
+            if (inst.x < minX) minX = inst.x;
+            if (inst.x > maxX) maxX = inst.x;
+            if (inst.y < minY) minY = inst.y;
+            if (inst.y > maxY) maxY = inst.y;
+        });
+    } else if (minX === Infinity) {
+        // No board and no instances
         state.canvasState.scale = 10;
         state.canvasState.offsetX = canvasInstance.canvas.width / 2;
         state.canvasState.offsetY = canvasInstance.canvas.height / 2;
         if (canvasInstance) canvasInstance.draw();
         return;
     }
-
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    state.placedInstances.forEach(inst => {
-        if (inst.x < minX) minX = inst.x;
-        if (inst.x > maxX) maxX = inst.x;
-        if (inst.y < minY) minY = inst.y;
-        if (inst.y > maxY) maxY = inst.y;
-    });
 
     const padding = 20;
     minX -= padding;
@@ -550,7 +564,7 @@ export function fitCanvas() {
     const bboxWidth = maxX - minX;
     const bboxHeight = maxY - minY;
 
-    if (bboxWidth === 0 || bboxHeight === 0) {
+    if (bboxWidth <= 0 || bboxHeight <= 0) {
         state.canvasState.scale = 10;
         state.canvasState.offsetX = canvasInstance.canvas.width / 2 - minX * 10;
         state.canvasState.offsetY = canvasInstance.canvas.height / 2 + minY * 10;
@@ -558,8 +572,8 @@ export function fitCanvas() {
         return;
     }
 
-    const targetW = canvasInstance.canvas.width * 0.8;
-    const targetH = canvasInstance.canvas.height * 0.8;
+    const targetW = canvasInstance.canvas.width * 0.95;
+    const targetH = canvasInstance.canvas.height * 0.95;
 
     const scaleX = targetW / bboxWidth;
     const scaleY = targetH / bboxHeight;
