@@ -85,7 +85,7 @@ class ViaInstance:
             if self.padstack.bd_enabled:
                 via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 if self.padstack.fill_enabled:
-                     via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", '', is_pin=False, net_name='GND')
+                     via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
                      via_fill.start_layer=self.padstack.bd_to_layer  
                      #via_fill.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
 
@@ -107,10 +107,10 @@ class ViaInstance:
                 via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 if self.padstack.fill_enabled:
-                     via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", '', is_pin=False, net_name='GND')
+                     via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
                      via_fill_p.start_layer=self.padstack.bd_to_layer  
                      #via_fill_p.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
-                     via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", '', is_pin=False, net_name='GND')
+                     via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
                      via_fill_n.start_layer=self.padstack.bd_to_layer  
                      #via_fill_n.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
 
