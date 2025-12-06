@@ -25,6 +25,7 @@ export class PlacementCanvas {
         this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
         this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
         // Initial resize
         this.resize();
@@ -66,6 +67,107 @@ export class PlacementCanvas {
         state.placedInstances.forEach(inst => {
             this.drawInstance(inst);
         });
+
+        this.drawRuler();
+
+        this.ctx.restore();
+    }
+
+    drawRuler() {
+        const start = state.canvasState.measureStart;
+        const end = state.canvasState.measureEnd;
+        if (!start || !end) return;
+
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+
+        this.ctx.save();
+        const color = '#FFFF00';
+        this.ctx.strokeStyle = color;
+        this.ctx.fillStyle = color;
+        this.ctx.lineWidth = 1 / state.canvasState.scale;
+
+        // Draw Slope (Diagonal)
+        this.ctx.beginPath();
+        this.ctx.moveTo(start.x, start.y);
+        this.ctx.lineTo(end.x, end.y);
+        this.ctx.stroke();
+
+        // Draw Projections (Triangle legs)
+        this.ctx.setLineDash([2 / state.canvasState.scale, 2 / state.canvasState.scale]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(start.x, start.y);
+        this.ctx.lineTo(end.x, start.y); // Horizontal
+        this.ctx.lineTo(end.x, end.y);   // Vertical
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
+        // Helper to draw text with background
+        const drawText = (text, x, y) => {
+            this.ctx.save();
+            this.ctx.translate(x, y);
+            this.ctx.scale(1, -1); // Unflip text
+
+            const fontSize = 14 / state.canvasState.scale;
+            this.ctx.font = `${fontSize}px monospace`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+
+            const metrics = this.ctx.measureText(text);
+            const padding = 2;
+
+            // Background
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(
+                -metrics.width / 2 - padding,
+                -fontSize / 2 - padding,
+                metrics.width + padding * 2,
+                fontSize + padding * 2
+            );
+
+            // Text
+            this.ctx.fillStyle = color;
+            this.ctx.fillText(text, 0, 0);
+
+            this.ctx.restore();
+        };
+
+        // Calculate positions with offsets to avoid overlap
+        const midX = (start.x + end.x) / 2;
+        const midY = (start.y + end.y) / 2;
+        const offsetDist = 20 / state.canvasState.scale;
+
+        // Determine directions
+        const signX = (end.x >= start.x) ? 1 : -1;
+        const signY = (end.y >= start.y) ? 1 : -1;
+
+        // dx label: Below horizontal leg if dragging up, Above if dragging down
+        // Horizontal leg is at y = start.y
+        // "Below" means -Y (since Y+ is up in our transformed space)
+        // If dragging Up (signY=1), triangle is above start.y. Outside is below (-).
+        // If dragging Down (signY=-1), triangle is below start.y. Outside is above (+).
+        const dxLabelY = start.y - signY * offsetDist;
+        const dxLabelX = midX;
+
+        // dy label: Right of vertical leg if dragging right, Left if dragging left
+        // Vertical leg is at x = end.x
+        // "Right" means +X.
+        // If dragging Right (signX=1), triangle is left of end.x. Outside is right (+).
+        // If dragging Left (signX=-1), triangle is right of end.x. Outside is left (-).
+        const dyLabelX = end.x + signX * offsetDist;
+        const dyLabelY = midY;
+
+        // L label: Opposite to legs (Inside/Above hypotenuse)
+        // Shift X opposite to dy label shift
+        // Shift Y opposite to dx label shift
+        const lLabelX = midX - signX * offsetDist;
+        const lLabelY = midY + signY * offsetDist;
+
+        // Draw Labels
+        drawText(`L: ${len.toFixed(2)}`, lLabelX, lLabelY);
+        drawText(`dx: ${dx.toFixed(2)}`, dxLabelX, dxLabelY);
+        drawText(`dy: ${dy.toFixed(2)}`, dyLabelX, dyLabelY);
 
         this.ctx.restore();
     }
@@ -355,24 +457,9 @@ export class PlacementCanvas {
         this.ctx.stroke();
         this.ctx.globalAlpha = 1.0;
 
-        // Draw Label (approximate location at end of path?)
-        // Or just use the instance location + offset like before?
-        // The old logic calculated label position based on edge.
-        // Let's use the last point of the first path as a hint, or just keep it simple.
-        // The old logic:
-        // lblX = (inst.x + edgeX) / 2;
-        // With complex paths, maybe just put it near the via?
-        // Or at the midpoint of the path?
-        // Let's stick to the instance location for now or try to find a good spot.
-        // Actually, let's just use the midpoint of the first segment of the first path for simplicity,
-        // or just keep the label near the via.
-
-        // Let's try to replicate the old label logic if possible, or just place it at the end of the path.
         if (paths.length > 0 && paths[0].length > 0) {
             const p = paths[0];
             const lastPt = p[p.length - 1];
-            // Midpoint of the whole path is hard to define for polyline.
-            // Let's just put it at the end.
             this.drawLabel(lastPt.x, lastPt.y, layerName);
         }
     }
@@ -395,6 +482,10 @@ export class PlacementCanvas {
         const mouseX = (e.clientX - rect.left - state.canvasState.offsetX) / state.canvasState.scale;
         const mouseY = -(e.clientY - rect.top - state.canvasState.offsetY) / state.canvasState.scale;
 
+        // Store screen coordinates for click detection
+        state.canvasState.startScreenX = e.clientX;
+        state.canvasState.startScreenY = e.clientY;
+
         if (e.button === 1 || (e.button === 0 && e.altKey)) {
             state.canvasState.isDragging = true;
             state.canvasState.dragType = 'pan';
@@ -410,8 +501,17 @@ export class PlacementCanvas {
                 state.canvasState.dragInstanceId = clickedId;
                 this.canvas.style.cursor = 'grabbing';
             } else {
-                if (this.callbacks.onPlace) this.callbacks.onPlace(mouseX, mouseY);
+                // Potential Place (wait for mouse up)
+                state.canvasState.isDragging = true;
+                state.canvasState.dragType = 'potential_place';
             }
+        } else if (e.button === 2) {
+            // Measure
+            state.canvasState.isDragging = true;
+            state.canvasState.dragType = 'measure';
+            state.canvasState.measureStart = { x: mouseX, y: mouseY };
+            state.canvasState.measureEnd = { x: mouseX, y: mouseY };
+            this.draw();
         }
     }
 
@@ -438,6 +538,9 @@ export class PlacementCanvas {
                     this.draw();
                     if (this.callbacks.onUpdate) this.callbacks.onUpdate();
                 }
+            } else if (state.canvasState.dragType === 'measure') {
+                state.canvasState.measureEnd = { x: mouseX, y: mouseY };
+                this.draw();
             }
         } else {
             const hoveredId = this.checkSelection(mouseX, mouseY);
@@ -448,7 +551,25 @@ export class PlacementCanvas {
     handleMouseUp(e) {
         if (state.canvasState.dragType === 'move') {
             if (this.callbacks.onUpdate) this.callbacks.onUpdate();
+        } else if (state.canvasState.dragType === 'measure') {
+            // Clear measurement
+            state.canvasState.measureStart = null;
+            state.canvasState.measureEnd = null;
+            this.draw();
+        } else if (state.canvasState.dragType === 'potential_place') {
+            // Check if it was a click (short distance)
+            const dist = Math.hypot(e.clientX - state.canvasState.startScreenX, e.clientY - state.canvasState.startScreenY);
+            if (dist < 5) {
+                // It was a click, trigger place
+                if (this.callbacks.onPlace) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mouseX = (e.clientX - rect.left - state.canvasState.offsetX) / state.canvasState.scale;
+                    const mouseY = -(e.clientY - rect.top - state.canvasState.offsetY) / state.canvasState.scale;
+                    this.callbacks.onPlace(mouseX, mouseY);
+                }
+            }
         }
+
         state.canvasState.isDragging = false;
         state.canvasState.dragType = null;
         state.canvasState.dragInstanceId = null;
