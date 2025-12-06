@@ -476,15 +476,34 @@ function pasteInstance() {
     newInst.id = Date.now();
 
     // Generate unique name
+    // Generate unique name
     let baseName = newInst.name;
-    // Simple logic to avoid infinite growth of "_copy_copy..."
-    // If it already ends in _copy, maybe strip it? Or just append.
-    // Let's just append _copy and then ensure uniqueness.
-    let newName = `${baseName}_copy`;
-    let count = 1;
-    while (state.placedInstances.some(i => i.name === newName)) {
-        newName = `${baseName}_copy${count}`;
-        count++;
+    let newName;
+
+    // Check if name ends with a number (e.g., "Via_1", "Name123")
+    // Regex matches: (anything)(optional underscore)(number)$
+    const match = baseName.match(/^(.*?)_?(\d+)$/);
+
+    if (match) {
+        // It has a number at the end
+        const prefix = match[1];
+        let num = parseInt(match[2], 10);
+
+        // Try incrementing until unique
+        do {
+            num++;
+            newName = `${prefix}_${num}`;
+        } while (state.placedInstances.some(i => i.name === newName));
+    } else {
+        // No number at end, append _0
+        let num = 0;
+        newName = `${baseName}_${num}`;
+
+        // If that exists, keep incrementing
+        while (state.placedInstances.some(i => i.name === newName)) {
+            num++;
+            newName = `${baseName}_${num}`;
+        }
     }
     newInst.name = newName;
 
