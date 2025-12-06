@@ -324,7 +324,7 @@ button:hover {
 }
 
 .padstack-sidebar {
-    width: 200px;
+    width: 270px;
     background-color: var(--panel-bg);
     border: 1px solid var(--border-color);
     display: flex;
