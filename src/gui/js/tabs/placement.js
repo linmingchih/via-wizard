@@ -438,11 +438,29 @@ export function updateInstanceProp(id, key, value) {
     } else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'gndCount' || key === 'gndAngleStep' || key === 'feedInD1' || key === 'feedInAlpha' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutAlpha' || key === 'feedOutR') {
+        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'feedInD1' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutR') {
+            const val = parseFloat(value);
+            if (val > 0) {
+                inst.properties[key] = val;
+            } else {
+                renderPropertiesPanel(); // Re-render to reset invalid input
+                return;
+            }
+        } else if (key === 'gndCount' || key === 'gndAngleStep' || key === 'feedInAlpha' || key === 'feedOutAlpha') {
             inst.properties[key] = parseFloat(value);
         } else if (key === 'feedInD2' || key === 'feedOutD2') {
             // Allow empty string for "Auto"
-            inst.properties[key] = value === "" ? undefined : parseFloat(value);
+            if (value === "") {
+                inst.properties[key] = undefined;
+            } else {
+                const val = parseFloat(value);
+                if (val > 0) {
+                    inst.properties[key] = val;
+                } else {
+                    renderPropertiesPanel();
+                    return;
+                }
+            }
         } else if (key === 'gndPadstackIndex') {
             inst.properties[key] = parseInt(value);
         } else {
