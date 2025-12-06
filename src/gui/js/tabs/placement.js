@@ -541,7 +541,7 @@ function pasteInstance() {
 
 export function updateGrid() {
     const val = parseFloat(document.getElementById('grid-spacing').value);
-    if (val > 0) {
+    if (Number.isInteger(val) && val >= 1) {
         state.canvasState.gridSpacing = val;
         if (canvasInstance) canvasInstance.draw();
     }

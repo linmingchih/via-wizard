@@ -39,6 +39,7 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 *   **Dynamic Sorting**: Placed instances are automatically sorted alphabetically for easy management.
 *   **Optimized UI**: The "Placed Instances" panel is optimized for better visibility of properties.
 *   **Smart Copy/Paste**: Copy and paste instances with automatic name incrementing (e.g., `Via_1` -> `Via_2`) to ensure unique naming.
+*   **Ruler Tool**: Measure distances on the canvas using the **Right Mouse Button**. Displays Length, dx, and dy with non-overlapping labels.
 
 ### 4. Simulation Export
 *   **AEDB Generation**: Export your entire design (stackup, padstacks, placed instances) to an Ansys AEDB project (`.aedb`).

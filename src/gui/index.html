@@ -316,8 +316,8 @@
                             </div>
                             <div class="toolbar-group">
                                 <label>Grid:</label>
-                                <input type="number" id="grid-spacing" value="5" style="width: 50px;"
-                                    onchange="updateGrid()">
+                                <input type="number" id="grid-spacing" value="5" min="1" step="1" style="width: 50px;"
+                                    oninput="updateGrid()" onchange="updateGrid()">
                                 <span>mil</span>
                             </div>
                         </div>
