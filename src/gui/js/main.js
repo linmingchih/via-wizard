@@ -26,6 +26,8 @@ window.updatePadstackProperty = padstack.updatePadstackProperty;
 window.toggleBackdrill = padstack.toggleBackdrill;
 window.toggleBdMode = padstack.toggleBdMode;
 window.updateBackdrillProperty = padstack.updateBackdrillProperty;
+window.toggleFill = padstack.toggleFill;
+window.updateFillProperty = padstack.updateFillProperty;
 
 // Placement
 window.renderPlacementTab = placement.renderPlacementTab;

@@ -43,6 +43,11 @@ export function addPadstack() {
             stub: 0,
             depth: 0
         },
+        fill: {
+            enabled: false,
+            dk: 4,
+            df: 0.02
+        },
         layers: {}
     };
 
@@ -79,7 +84,7 @@ export function renderPadstackList() {
 
 export function renderPadstackForm() {
     if (state.currentPadstackIndex === -1) {
-        const inputs = ['pad-name', 'pad-hole-diam', 'pad-size', 'pad-antipad-size', 'pad-material', 'pad-plating', 'pad-start-layer', 'pad-stop-layer'];
+        const inputs = ['pad-name', 'pad-hole-diam', 'pad-size', 'pad-antipad-size', 'pad-material', 'pad-plating', 'pad-start-layer', 'pad-stop-layer', 'fill-dk', 'fill-df'];
         inputs.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
@@ -147,7 +152,37 @@ export function renderPadstackForm() {
     }
     setVal('bd-stub', p.backdrill.stub);
     setVal('bd-depth', p.backdrill.depth);
+
+    // Fill Properties
+    const fillCheck = document.getElementById('fill');
+    if (fillCheck) fillCheck.checked = p.fill && p.fill.enabled;
+
+    const fillPropsDiv = document.getElementById('fill-properties');
+    if (fillPropsDiv) {
+        if (p.fill && p.fill.enabled) {
+            fillPropsDiv.classList.remove('disabled');
+            const dkInput = document.getElementById('fill-dk');
+            const dfInput = document.getElementById('fill-df');
+            if (dkInput) dkInput.disabled = false;
+            if (dfInput) dfInput.disabled = false;
+        } else {
+            fillPropsDiv.classList.add('disabled');
+            const dkInput = document.getElementById('fill-dk');
+            const dfInput = document.getElementById('fill-df');
+            if (dkInput) dkInput.disabled = true;
+            if (dfInput) dfInput.disabled = true;
+        }
+    }
+
+    if (p.fill) {
+        setVal('fill-dk', p.fill.dk);
+        setVal('fill-df', p.fill.df);
+    } else {
+        setVal('fill-dk', 4);
+        setVal('fill-df', 0.02);
+    }
 }
+
 
 export function updatePadstackProperty(key, value) {
     if (state.currentPadstackIndex === -1) return;
@@ -199,4 +234,43 @@ export function updateBackdrillProperty(key, value) {
         value = parseFloat(value);
     }
     p.backdrill[key] = value;
+}
+
+export function toggleFill(enabled) {
+    if (state.currentPadstackIndex === -1) return;
+    if (!state.padstacks[state.currentPadstackIndex].fill) {
+        state.padstacks[state.currentPadstackIndex].fill = {
+            enabled: false,
+            dk: 4,
+            df: 0.02
+        };
+    }
+    state.padstacks[state.currentPadstackIndex].fill.enabled = enabled;
+
+    const fillPropsDiv = document.getElementById('fill-properties');
+    const dkInput = document.getElementById('fill-dk');
+    const dfInput = document.getElementById('fill-df');
+
+    if (fillPropsDiv) {
+        if (enabled) {
+            fillPropsDiv.classList.remove('disabled');
+            if (dkInput) dkInput.disabled = false;
+            if (dfInput) dfInput.disabled = false;
+        } else {
+            fillPropsDiv.classList.add('disabled');
+            if (dkInput) dkInput.disabled = true;
+            if (dfInput) dfInput.disabled = true;
+        }
+    }
+}
+
+export function updateFillProperty(key, value) {
+    if (state.currentPadstackIndex === -1) return;
+    if (!state.padstacks[state.currentPadstackIndex].fill) return;
+
+    const p = state.padstacks[state.currentPadstackIndex];
+    if (key === 'dk' || key === 'df') {
+        value = parseFloat(value);
+    }
+    p.fill[key] = value;
 }
