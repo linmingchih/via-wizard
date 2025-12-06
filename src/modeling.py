@@ -27,6 +27,12 @@ class PadstackConfig:
         self.bd_stub = f'{bd_data.get("stub", 0)}{units}'
         self.bd_depth = f'{bd_data.get("depth", 0)}{units}'
 
+        # Fill info
+        fill_data = data_dict.get('fill', {})
+        self.fill_enabled = fill_data.get('enabled', False)
+        self.fill_dk = fill_data.get('dk', 4.0)
+        self.fill_df = fill_data.get('df', 0.02)
+
     def create_in_edb(self, edb_padstacks):
         """Creates the padstack definition in the EDB project."""
         edb_padstacks.create_padstack(
@@ -78,6 +84,10 @@ class ViaInstance:
             self.placed_pins.append(via)
             if self.padstack.bd_enabled:
                 via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
+                if self.padstack.fill_enabled:
+                     via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", '', is_pin=False)
+                     via_fill.start_layer=self.padstack.bd_to_layer  
+                     via_fill.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
 
 
         elif self.type == 'differential':
@@ -96,6 +106,13 @@ class ViaInstance:
             if self.padstack.bd_enabled:
                 via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
                 via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
+                if self.padstack.fill_enabled:
+                     via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", '', is_pin=False)
+                     via_fill_p.start_layer=self.padstack.bd_to_layer  
+                     via_fill_p.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
+                     via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", '', is_pin=False)
+                     via_fill_n.start_layer=self.padstack.bd_to_layer  
+                     via_fill_n.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
 
     def create_void(self, edb_modeler, layer_rects: dict, layer_dogbone_map: dict):
         """Creates an antipad void on reference layers for differential vias."""
@@ -260,6 +277,24 @@ class EdbProject:
         for padstack_data in self.data['padstacks']:
             config = PadstackConfig(padstack_data, self.units)
             config.create_in_edb(self.edb.padstacks)
+            
+            # Handle Fill Material and Padstack
+            if config.fill_enabled and config.bd_enabled:
+                fill_mat_name = f'fill_mat_{config.fill_dk}_{config.fill_df}'
+                self.edb.materials.add_dielectric_material(fill_mat_name, config.fill_dk, config.fill_df)
+                
+                fill_padstack_name = f"{config.name}_fill"
+                self.edb.padstacks.create_padstack(
+                    padstackname=fill_padstack_name,
+                    holediam=config.bd_diameter,
+                    paddiam="0",
+                    antipaddiam="0",
+                    startlayer=config.bd_to_layer,
+                    endlayer=config.stop_layer,
+                )
+                self.edb.padstacks.definitions[fill_padstack_name].material = fill_mat_name
+                self.edb.padstacks.definitions[fill_padstack_name].hole_plating_ratio = 100 
+
             self.padstack_configs[config.name] = config
 
     def process_via_instances(self):
