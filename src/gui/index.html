@@ -242,6 +242,27 @@
                                 </div>
                             </div>
 
+                            <div id="fill-group">
+                                <div class="form-group">
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="fill" onchange="toggleFill(this.checked)">
+                                        <label for="fill">Fill</label>
+                                    </div>
+                                </div>
+                                <div id="fill-properties">
+                                    <div class="form-group">
+                                        <label>DK:</label>
+                                        <input type="number" id="fill-dk"
+                                            onchange="updateFillProperty('dk', this.value)">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>DF:</label>
+                                        <input type="number" id="fill-df"
+                                            onchange="updateFillProperty('df', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
