@@ -82,18 +82,21 @@ export function renderStackupTable() {
                 }
             }
             return `<input type="${type}" value="${val !== undefined ? val : ''}" 
-                    onchange="window.updateLayer(${index}, '${key}', this.value)" ${disabled ? 'disabled' : ''}>`;
+                    onchange="window.updateLayer(${index}, '${key}', this.value)" 
+                    onfocus="window.setFocusedCell(${index}, '${key}')"
+                    ${disabled ? 'disabled' : ''}>`;
         };
 
         const createSelect = (key, options) => {
             const opts = options.map(o => `<option value="${o}" ${layer[key] === o ? 'selected' : ''}>${o}</option>`).join('');
-            return `<select onchange="window.updateLayer(${index}, '${key}', this.value)">${opts}</select>`;
+            return `<select onchange="window.updateLayer(${index}, '${key}', this.value)" onfocus="window.setFocusedCell(${index}, '${key}')">${opts}</select>`;
         };
 
         const createCheckbox = (key, disabled = false) => {
             if (disabled) return '';
             return `<input type="checkbox" ${layer[key] ? 'checked' : ''} 
-                    onchange="window.updateLayer(${index}, '${key}', this.checked)">`;
+                    onchange="window.updateLayer(${index}, '${key}', this.checked)"
+                    onfocus="window.setFocusedCell(${index}, '${key}')">`;
         };
 
         tr.innerHTML = `
@@ -152,6 +155,13 @@ export function toggleUnits(unit) {
     addMessage(`Units switched to ${unit}`);
 }
 
+export function setFocusedCell(rowIndex, colKey) {
+    state.lastFocusedCell = { rowIndex, colKey };
+}
+window.setFocusedCell = setFocusedCell;
+
+const columnKeys = ['name', 'type', 'thickness', 'dk', 'df', 'conductivity', 'isReference', 'dogBone'];
+
 export function handlePaste(event) {
     event.preventDefault();
     const clipboardData = event.clipboardData || window.clipboardData;
@@ -160,27 +170,50 @@ export function handlePaste(event) {
     const rows = pastedData.trim().split('\n');
     if (rows.length === 0) return;
 
-    state.currentStackup = [];
-    rows.forEach(row => {
+    let startRow = 0;
+    let startColIdx = 0;
+
+    if (state.lastFocusedCell) {
+        startRow = state.lastFocusedCell.rowIndex;
+        startColIdx = columnKeys.indexOf(state.lastFocusedCell.colKey);
+        if (startColIdx === -1) startColIdx = 0;
+    }
+
+    rows.forEach((row, r) => {
         const cols = row.split('\t');
-        if (cols.length >= 3) {
-            state.currentStackup.push({
-                name: cols[0] || "Layer",
-                type: cols[1] || "Dielectric",
-                thickness: parseFloat(cols[2]) || 0,
-                dk: parseFloat(cols[3]) || "",
-                df: parseFloat(cols[4]) || "",
-                conductivity: parseFloat(cols[5]) || "",
-                fillMaterial: cols[6] || "",
-                isReference: cols[7] && (cols[7].toLowerCase() === 'true' || cols[7] === '1'),
-                dogBone: !isNaN(parseFloat(cols[8])) ? parseFloat(cols[8]) : -1
-            });
+        const targetRowIdx = startRow + r;
+
+        // Extend stackup if needed
+        if (targetRowIdx >= state.currentStackup.length) {
+            state.currentStackup.push(createLayer(`Layer_${targetRowIdx + 1}`, "Dielectric", 0, "", "", "", "", false));
         }
+
+        cols.forEach((val, c) => {
+            const targetColIdx = startColIdx + c;
+            if (targetColIdx < columnKeys.length) {
+                const key = columnKeys[targetColIdx];
+                let value = val.trim();
+
+                // Type conversion
+                if (['thickness', 'dk', 'df', 'conductivity', 'dogBone'].includes(key)) {
+                    if (value === "") {
+                        value = "";
+                    } else {
+                        const parsed = parseFloat(value);
+                        value = isNaN(parsed) ? value : parsed;
+                    }
+                } else if (key === 'isReference') {
+                    value = (value.toLowerCase() === 'true' || value === '1' || value.toLowerCase() === 'yes');
+                }
+
+                state.currentStackup[targetRowIdx][key] = value;
+            }
+        });
     });
 
     renderStackupTable();
     render2DView();
-    addMessage(`Pasted ${state.currentStackup.length} layers.`);
+    addMessage(`Pasted ${rows.length} rows starting at row ${startRow + 1}.`);
 }
 
 export function render2DView() {

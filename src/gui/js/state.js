@@ -16,7 +16,8 @@ export const state = {
         lastX: 0,
         lastY: 0,
         gridSpacing: 5
-    }
+    },
+    lastFocusedCell: null
 };
 
 export function resetProjectData() {
