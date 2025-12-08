@@ -135,19 +135,17 @@ class ViaInstance:
             current_antipad_val = dogbone_val if dogbone_val > 0 else antipad_size
             
             if self.properties["orientation"] == "horizontal":
-                width = f'{pitch}{self._units}'
-                height = f'{current_antipad_val}{self._units}'
+                width = pitch
+                height = current_antipad_val   
             else:
-                width = f'{current_antipad_val}{self._units}'
-                height = f'{pitch}{self._units}'
+                width = current_antipad_val
+                height = pitch
 
             void = edb_modeler.create_rectangle(
                 layer,
-                center_point=self._to_mil(self.x, self.y),
                 net_name = 'GND',
-                width=width,
-                height=height,
-                representation_type="center_width_height"
+                lower_left_point=(f'{self.x-width/2}mil', f'{self.y-height/2}mil'),
+                upper_right_point=(f'{self.x+width/2}mil', f'{self.y+height/2}mil'),
             )
             edb_modeler.add_void(rect, void)
 
@@ -263,13 +261,13 @@ class EdbProject:
             
             # 3. Create Reference Rectangles
             if layer["isReference"] == True:
+                w = self.data["boardWidth"]
+                h = self.data["boardHeight"]
                 rect = self.edb.modeler.create_rectangle(
                     layer['name'],
                     net_name='GND',
-                    center_point=(0, 0),
-                    width=f'{self.data["boardWidth"]}{self.units}',
-                    height=f'{self.data["boardHeight"]}{self.units}',
-                    representation_type="center_width_height"
+                    lower_left_point=(f'{-w/2}{self.units}', f'{-h/2}{self.units}'),
+                    upper_right_point=(f'{w/2}{self.units}', f'{h/2}{self.units}'),
                 )
                 self.layer_rects[layer['name']] = rect
 
@@ -375,7 +373,7 @@ if __name__ == "__main__":
     # Handle command-line arguments and fallback for testing
     if len(sys.argv) < 3:
         # Fallback for testing if run directly without args
-        json_path = 'd:/demo/project.json'
+        json_path = 'd:/demo/project_flatten.json'
         aedb_version = '2025.2'
         print(f"Using fallback parameters for testing: JSON='{json_path}', AEDB='{aedb_version}'")
     else:
