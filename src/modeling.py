@@ -147,7 +147,7 @@ class ViaInstance:
                 net_name = 'GND',
                 width=width,
                 height=height,
-                representation_type="CenterWidthHeight"
+                representation_type="center_width_height"
             )
             edb_modeler.add_void(rect, void)
 
@@ -269,7 +269,7 @@ class EdbProject:
                     center_point=(0, 0),
                     width=f'{self.data["boardWidth"]}{self.units}',
                     height=f'{self.data["boardHeight"]}{self.units}',
-                    representation_type="CenterWidthHeight"
+                    representation_type="center_width_height"
                 )
                 self.layer_rects[layer['name']] = rect
 
