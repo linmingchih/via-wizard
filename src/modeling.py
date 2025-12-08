@@ -202,7 +202,8 @@ class EdbProject:
     """Manages the creation and configuration of the EDB project."""
     def __init__(self, json_path, aedb_version):
         self.aedb_path = os.path.splitext(json_path)[0] + '.aedb'
-        self.edb = Edb(version=aedb_version)
+        self.edb = Edb(version=aedb_version, grpc=True) 
+
         self.data = self._load_json(json_path)
         self.units = self.data['units']
         self.layer_rects = {} # Stores EDB object references for reference planes (for voids)
@@ -225,8 +226,8 @@ class EdbProject:
     def setup_analysis(self):
         """Sets up the HFSS extent and solution setup."""
         # Extent Info
-        self.edb.core_hfss.hfss_extent_info.air_box_positive_vertical_extent = 0.5
-        self.edb.core_hfss.hfss_extent_info.air_box_negative_vertical_extent = 0.5
+        self.edb.hfss.hfss_extent_info.air_box_positive_vertical_extent = 0.5
+        self.edb.hfss.hfss_extent_info.air_box_negative_vertical_extent = 0.5
         
         # Setup and Sweep
         setup = self.edb.create_hfss_setup("hfss_setup")
@@ -375,7 +376,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         # Fallback for testing if run directly without args
         json_path = 'd:/demo/project.json'
-        aedb_version = '2024.1'
+        aedb_version = '2025.2'
         print(f"Using fallback parameters for testing: JSON='{json_path}', AEDB='{aedb_version}'")
     else:
         json_path = sys.argv[1]
