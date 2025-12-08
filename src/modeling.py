@@ -35,13 +35,13 @@ class PadstackConfig:
 
     def create_in_edb(self, edb_padstacks):
         """Creates the padstack definition in the EDB project."""
-        edb_padstacks.create_padstack(
+        edb_padstacks.create(
             padstackname=self.name,
             holediam=self.hole_diameter,
             paddiam=self.pad_size,
             antipaddiam=self.antipad_size,
-            startlayer=self.start_layer,
-            endlayer=self.stop_layer,
+            start_layer=self.start_layer,
+            stop_layer=self.stop_layer,
         )
         edb_padstacks.definitions[self.name].hole_plating_ratio = self.plating
         edb_padstacks.definitions[self.name].material = self.material
@@ -285,13 +285,13 @@ class EdbProject:
                 self.edb.materials.add_dielectric_material(fill_mat_name, config.fill_dk, config.fill_df)
                 
                 fill_padstack_name = f"{config.name}_fill"
-                self.edb.padstacks.create_padstack(
+                self.edb.padstacks.create(
                     padstackname=fill_padstack_name,
                     holediam=config.bd_diameter,
                     paddiam="0",
                     antipaddiam="0",
-                    startlayer=config.bd_to_layer,
-                    endlayer=config.stop_layer,
+                    start_layer=config.bd_to_layer,
+                    stop_layer=config.stop_layer,
                 )
                 self.edb.padstacks.definitions[fill_padstack_name].material = fill_mat_name
                 self.edb.padstacks.definitions[fill_padstack_name].hole_plating_ratio = 100 
