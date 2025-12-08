@@ -8,7 +8,7 @@ if %ERRORLEVEL% NEQ 0 (
     powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
     
     :: Add common uv install locations to PATH for this session
-    set "PATH=%USERPROFILE%\.cargo\bin;%LOCALAPPDATA%\bin;%PATH%"
+    set "PATH=%USERPROFILE%\.cargo\bin;%LOCALAPPDATA%\bin;%USERPROFILE%\.local\bin;%LOCALAPPDATA%\Programs\uv;%LOCALAPPDATA%\Programs\uv\bin;%PATH%"
 )
 
 :: Verify uv is available
