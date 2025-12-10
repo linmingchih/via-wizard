@@ -416,17 +416,19 @@ export function renderPropertiesPanel() {
         html += createLayerRow('feedOut', 'Feed Out Layer');
         html += createWidthRow('feedOutWidth', 'Feed Out Width');
     } else if (inst.type === 'dog_bone') {
-        // Connected Diff Pair
-        const diffPairs = state.placedInstances.filter(i => i.type === 'differential' || i.type === 'diff_gnd');
-        const diffOpts = diffPairs.map(dp => `<option value="${dp.id}" ${dp.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${dp.name}</option>`).join('');
+        // Connected Parent (Diff Pair, Single, or GND)
+        const potentialParents = state.placedInstances.filter(i =>
+            ['differential', 'diff_gnd', 'single', 'gnd'].includes(i.type)
+        );
+        const parentOpts = potentialParents.map(p => `<option value="${p.id}" ${p.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${p.name}</option>`).join('');
 
         html += `
             <tr>
                 <td>Connect to</td>
                 <td>
                     <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
-                        <option value="">-- Select Diff Pair --</option>
-                        ${diffOpts}
+                        <option value="">-- Select Instance --</option>
+                        ${parentOpts}
                     </select>
                 </td>
             </tr>
@@ -438,14 +440,35 @@ export function renderPropertiesPanel() {
                 <td>Length</td>
                 <td><input type="number" value="${inst.properties.length}" oninput="window.updateInstanceProp(${inst.id}, 'length', this.value)"></td>
             </tr>
-            <tr>
-                <td>Pos Angle</td>
-                <td><input type="number" value="${inst.properties.posAngle}" oninput="window.updateInstanceProp(${inst.id}, 'posAngle', this.value)"></td>
-            </tr>
-            <tr>
-                <td>Neg Angle</td>
-                <td><input type="number" value="${inst.properties.negAngle}" oninput="window.updateInstanceProp(${inst.id}, 'negAngle', this.value)"></td>
-            </tr>
+
+        `;
+
+        // Determine parent type to decide on Angle inputs
+        const parentId = inst.properties.connectedDiffPairId;
+        const parent = state.placedInstances.find(i => i.id === parentId);
+        const isSingleOrGnd = parent && (parent.type === 'single' || parent.type === 'gnd');
+
+        if (isSingleOrGnd) {
+            html += `
+                <tr>
+                    <td>Angle</td>
+                    <td><input type="number" value="${inst.properties.angle !== undefined ? inst.properties.angle : 45}" oninput="window.updateInstanceProp(${inst.id}, 'angle', this.value)"></td>
+                </tr>
+            `;
+        } else {
+            html += `
+                <tr>
+                    <td>Pos Angle</td>
+                    <td><input type="number" value="${inst.properties.posAngle}" oninput="window.updateInstanceProp(${inst.id}, 'posAngle', this.value)"></td>
+                </tr>
+                <tr>
+                    <td>Neg Angle</td>
+                    <td><input type="number" value="${inst.properties.negAngle}" oninput="window.updateInstanceProp(${inst.id}, 'negAngle', this.value)"></td>
+                </tr>
+            `;
+        }
+
+        html += `
             <tr>
                 <td>Diameter</td>
                 <td><input type="number" value="${inst.properties.diameter}" oninput="window.updateInstanceProp(${inst.id}, 'diameter', this.value)"></td>
@@ -487,9 +510,15 @@ export function updateInstanceProp(id, key, value) {
     } else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'feedInD1' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutR' || key === 'lineWidth' || key === 'length' || key === 'posAngle' || key === 'negAngle' || key === 'diameter') {
+        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'feedInD1' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutR' || key === 'lineWidth' || key === 'length' || key === 'posAngle' || key === 'negAngle' || key === 'diameter' || key === 'angle') {
             const val = parseFloat(value);
-            if (val > 0) {
+            if (val > 0 || key === 'angle' || key === 'posAngle' || key === 'negAngle') {
+                // Angles can be negative or 0, others usually > 0. But let's keep it simple for now, maybe just allow any number for angles.
+                // Actually, the original code checked val > 0 for all these. 
+                // Let's relax it for angles if needed, but for now just adding 'angle' to the list.
+                // Wait, if I add it to the list, it enters the block where it checks val > 0.
+                // Angles might need to be 0 or negative. 
+                // Let's modify the check to allow any number for angles.
                 inst.properties[key] = val;
             } else {
                 renderPropertiesPanel(); // Re-render to reset invalid input

@@ -207,7 +207,8 @@ class DogBoneFeed:
         self.units = units
         self._to_mil = to_mil_func
         
-        parent_id = self.properties.get('connectedDiffPairId')
+        # Support both keys for backward compatibility
+        parent_id = self.properties.get('connectedInstanceId') or self.properties.get('connectedDiffPairId')
         self.parent = instance_map.get(parent_id)
         
     def process(self, edb_project):
@@ -226,56 +227,16 @@ class DogBoneFeed:
             print("Error: No signal layer found for DogBone.")
             return
 
-        # 2. Calculate Geometry
-        # Parent properties
-        parent_props = self.parent.get('properties', {})
-        pitch = parent_props.get('pitch', 40)
-        is_vert = parent_props.get('orientation') == 'vertical'
+        # 2. Calculate Geometry & Create Elements
+        parent_type = self.parent['type']
+        is_diff = parent_type in ['differential', 'diff_gnd']
         
-        parent_x = self.parent['x']
-        parent_y = self.parent['y']
-        
-        dx = 0 if is_vert else pitch / 2
-        dy = pitch / 2 if is_vert else 0
-        
-        # Start points (centers of the diff pair vias)
-        pos_x_start = parent_x + dx
-        pos_y_start = parent_y + dy
-        neg_x_start = parent_x - dx
-        neg_y_start = parent_y - dy
-        
-        # Dogbone properties
-        length = self.properties.get('length', 20)
-        pos_angle_deg = self.properties.get('posAngle', 45)
-        neg_angle_deg = self.properties.get('negAngle', 135)
-        
-        pos_angle_rad = math.radians(float(pos_angle_deg))
-        neg_angle_rad = math.radians(float(neg_angle_deg))
-        
-        # End points
-        length = float(length)
-        pos_x_end = pos_x_start + length * math.cos(pos_angle_rad)
-        pos_y_end = pos_y_start + length * math.sin(pos_angle_rad)
-        
-        neg_x_end = neg_x_start + length * math.cos(neg_angle_rad)
-        neg_y_end = neg_y_start + length * math.sin(neg_angle_rad)
-
-        # 3. Create Traces
         width_val = self.properties.get('lineWidth', 5)
         width = f"{width_val}{self.units}"
-        
-        # Positive Trace
-        pts_p = [self._to_mil(pos_x_start, pos_y_start), self._to_mil(pos_x_end, pos_y_end)]
-        edb_project.edb.modeler.create_trace(pts_p, top_signal_layer, width, net_name=f"netp_{self.parent['name']}", end_cap_style="Round")
-        
-        # Negative Trace
-        pts_n = [self._to_mil(neg_x_start, neg_y_start), self._to_mil(neg_x_end, neg_y_end)]
-        edb_project.edb.modeler.create_trace(pts_n, top_signal_layer, width, net_name=f"netn_{self.parent['name']}", end_cap_style="Round")
-
-        # 4. Create Padstack
         diam_val = self.properties.get('diameter', 10)
         pad_name = f"dogbone_{diam_val}{self.units}"
         
+        # Create Padstack Definition if needed
         if pad_name not in edb_project.edb.padstacks.definitions:
             edb_project.edb.padstacks.create(
                 padstackname=pad_name,
@@ -285,42 +246,97 @@ class DogBoneFeed:
                 start_layer=top_signal_layer,
                 stop_layer=top_signal_layer
             )
-            
-        # Place Pads
-        edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netp_{self.parent['name']}", is_pin=True)
-        edb_project.edb.padstacks.place(self._to_mil(neg_x_end, neg_y_end), pad_name, f"netn_{self.parent['name']}", is_pin=True)
-        
-        # 5. Create Void
+
         void_val = self.properties.get('void', 0)
-        if void_val > 0 and top_ref_layer:
-            ref_rect = edb_project.layer_rects.get(top_ref_layer)
-            if ref_rect:
-                # Create circle voids
-                # Note: create_circle takes (layer, x, y, radius)
-                # We need to pass values with units or floats. create_circle usually expects floats if no units, or strings with units.
-                # Let's use strings with units to be safe, matching _to_mil format.
-                
-                radius = f"{void_val/2}{self.units}"
-                
-                # Positive Void
+        radius = f"{void_val/2}{self.units}"
+        ref_rect = edb_project.layer_rects.get(top_ref_layer) if top_ref_layer else None
+
+        if is_diff:
+            # --- Differential Logic ---
+            parent_props = self.parent.get('properties', {})
+            pitch = parent_props.get('pitch', 40)
+            is_vert = parent_props.get('orientation') == 'vertical'
+            
+            parent_x = self.parent['x']
+            parent_y = self.parent['y']
+            
+            dx = 0 if is_vert else pitch / 2
+            dy = pitch / 2 if is_vert else 0
+            
+            # Start points
+            pos_x_start = parent_x + dx
+            pos_y_start = parent_y + dy
+            neg_x_start = parent_x - dx
+            neg_y_start = parent_y - dy
+            
+            # Angles
+            pos_angle_deg = self.properties.get('posAngle', 45)
+            neg_angle_deg = self.properties.get('negAngle', 135)
+            pos_angle_rad = math.radians(float(pos_angle_deg))
+            neg_angle_rad = math.radians(float(neg_angle_deg))
+            
+            # End points
+            length = float(self.properties.get('length', 20))
+            pos_x_end = pos_x_start + length * math.cos(pos_angle_rad)
+            pos_y_end = pos_y_start + length * math.sin(pos_angle_rad)
+            neg_x_end = neg_x_start + length * math.cos(neg_angle_rad)
+            neg_y_end = neg_y_start + length * math.sin(neg_angle_rad)
+            
+            # Create Traces
+            pts_p = [self._to_mil(pos_x_start, pos_y_start), self._to_mil(pos_x_end, pos_y_end)]
+            edb_project.edb.modeler.create_trace(pts_p, top_signal_layer, width, net_name=f"netp_{self.parent['name']}", end_cap_style="Round")
+            
+            pts_n = [self._to_mil(neg_x_start, neg_y_start), self._to_mil(neg_x_end, neg_y_end)]
+            edb_project.edb.modeler.create_trace(pts_n, top_signal_layer, width, net_name=f"netn_{self.parent['name']}", end_cap_style="Round")
+            
+            # Place Pads
+            edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netp_{self.parent['name']}", is_pin=True)
+            edb_project.edb.padstacks.place(self._to_mil(neg_x_end, neg_y_end), pad_name, f"netn_{self.parent['name']}", is_pin=True)
+            
+            # Create Voids
+            if void_val > 0 and ref_rect:
                 void_p = edb_project.edb.modeler.create_circle(
-                    top_ref_layer,
-                    self._to_mil(pos_x_end, pos_y_end)[0], 
-                    self._to_mil(pos_x_end, pos_y_end)[1], 
-                    radius,
-                    net_name="GND"
+                    top_ref_layer, self._to_mil(pos_x_end, pos_y_end)[0], self._to_mil(pos_x_end, pos_y_end)[1], radius, net_name="GND"
                 )
                 edb_project.edb.modeler.add_void(ref_rect, void_p)
                 
-                # Negative Void
                 void_n = edb_project.edb.modeler.create_circle(
-                    top_ref_layer,
-                    self._to_mil(neg_x_end, neg_y_end)[0],
-                    self._to_mil(neg_x_end, neg_y_end)[1],
-                    radius,
-                    net_name="GND"
+                    top_ref_layer, self._to_mil(neg_x_end, neg_y_end)[0], self._to_mil(neg_x_end, neg_y_end)[1], radius, net_name="GND"
                 )
                 edb_project.edb.modeler.add_void(ref_rect, void_n)
+
+        else:
+            # --- Single / GND Logic ---
+            start_x = self.parent['x']
+            start_y = self.parent['y']
+            
+            # Use 'angle' for single/gnd (fallback to posAngle for backward compat if needed, but UI uses 'angle')
+            angle_deg = self.properties.get('angle', self.properties.get('posAngle', 45))
+            angle_rad = math.radians(float(angle_deg))
+            
+            length = float(self.properties.get('length', 20))
+            end_x = start_x + length * math.cos(angle_rad)
+            end_y = start_y + length * math.sin(angle_rad)
+            
+            # Determine Net Name
+            if parent_type == 'gnd':
+                net_name = 'GND'
+            else:
+                net_name = f"net_{self.parent['name']}"
+            
+            # Create Trace
+            pts = [self._to_mil(start_x, start_y), self._to_mil(end_x, end_y)]
+            edb_project.edb.modeler.create_trace(pts, top_signal_layer, width, net_name=net_name, end_cap_style="Round")
+            
+            # Place Pad
+            edb_project.edb.padstacks.place(self._to_mil(end_x, end_y), pad_name, net_name, is_pin=True)
+            
+            # Create Void
+            if void_val > 0 and ref_rect:
+                void = edb_project.edb.modeler.create_circle(
+                    top_ref_layer, self._to_mil(end_x, end_y)[0], self._to_mil(end_x, end_y)[1], radius, net_name="GND"
+                )
+                edb_project.edb.modeler.add_void(ref_rect, void)
 
 # --- 3. EdbProject Class (Facade/Controller) ---
 class EdbProject:

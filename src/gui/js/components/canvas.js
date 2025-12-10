@@ -359,26 +359,40 @@ export class PlacementCanvas {
             const geom = this.getDogBoneGeometry(inst);
             if (geom) {
                 if (phase === 'trace') {
-                    const { posX, posY, negX, negY, pEnd, nEnd } = geom;
                     const lw = inst.properties.lineWidth || 5;
                     const diam = inst.properties.diameter || 10;
 
-                    // Draw Lines
                     this.ctx.beginPath();
                     this.ctx.strokeStyle = '#cd7f32';
                     this.ctx.lineWidth = lw;
-                    this.ctx.moveTo(posX, posY);
-                    this.ctx.lineTo(pEnd.x, pEnd.y);
-                    this.ctx.moveTo(negX, negY);
-                    this.ctx.lineTo(nEnd.x, nEnd.y);
-                    this.ctx.stroke();
-
-                    // Draw End Circles
-                    this.ctx.beginPath();
                     this.ctx.fillStyle = '#cd7f32';
-                    this.ctx.arc(pEnd.x, pEnd.y, diam / 2, 0, 2 * Math.PI);
-                    this.ctx.arc(nEnd.x, nEnd.y, diam / 2, 0, 2 * Math.PI);
-                    this.ctx.fill();
+
+                    if (geom.type === 'single') {
+                        // Draw Single Line
+                        this.ctx.moveTo(geom.startX, geom.startY);
+                        this.ctx.lineTo(geom.end.x, geom.end.y);
+                        this.ctx.stroke();
+
+                        // Draw Single End Circle
+                        this.ctx.beginPath();
+                        this.ctx.arc(geom.end.x, geom.end.y, diam / 2, 0, 2 * Math.PI);
+                        this.ctx.fill();
+                    } else {
+                        // Draw Diff Lines
+                        const { posX, posY, negX, negY, pEnd, nEnd } = geom;
+
+                        this.ctx.moveTo(posX, posY);
+                        this.ctx.lineTo(pEnd.x, pEnd.y);
+                        this.ctx.moveTo(negX, negY);
+                        this.ctx.lineTo(nEnd.x, nEnd.y);
+                        this.ctx.stroke();
+
+                        // Draw Diff End Circles
+                        this.ctx.beginPath();
+                        this.ctx.arc(pEnd.x, pEnd.y, diam / 2, 0, 2 * Math.PI);
+                        this.ctx.arc(nEnd.x, nEnd.y, diam / 2, 0, 2 * Math.PI);
+                        this.ctx.fill();
+                    }
                 }
             } else {
                 if (phase === 'via') {
@@ -697,11 +711,16 @@ export class PlacementCanvas {
             } else if (inst.type === 'dog_bone') {
                 const geom = this.getDogBoneGeometry(inst);
                 if (geom) {
-                    const { pEnd, nEnd } = geom;
                     const diam = inst.properties.diameter || 10;
                     const r = diam / 2;
-                    if (Math.hypot(pEnd.x - x, pEnd.y - y) <= r) return inst.id;
-                    if (Math.hypot(nEnd.x - x, nEnd.y - y) <= r) return inst.id;
+
+                    if (geom.type === 'single') {
+                        if (Math.hypot(geom.end.x - x, geom.end.y - y) <= r) return inst.id;
+                    } else {
+                        const { pEnd, nEnd } = geom;
+                        if (Math.hypot(pEnd.x - x, pEnd.y - y) <= r) return inst.id;
+                        if (Math.hypot(nEnd.x - x, nEnd.y - y) <= r) return inst.id;
+                    }
                 } else {
                     if (Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2) <= radius) return inst.id;
                 }
@@ -728,30 +747,48 @@ export class PlacementCanvas {
         const parent = state.placedInstances.find(i => i.id === connectedId);
         if (!parent) return null;
 
-        const pitch = parent.properties.pitch || 1.0;
-        const isVert = parent.properties.orientation === 'vertical';
-        const dx = isVert ? 0 : pitch / 2;
-        const dy = isVert ? pitch / 2 : 0;
-
-        const posX = parent.x + dx;
-        const posY = parent.y + dy;
-        const negX = parent.x - dx;
-        const negY = parent.y - dy;
-
         const len = inst.properties.length || 20;
-        const posAngle = (inst.properties.posAngle || 45) * Math.PI / 180;
-        const negAngle = (inst.properties.negAngle || 135) * Math.PI / 180;
 
-        const pEnd = {
-            x: posX + len * Math.cos(posAngle),
-            y: posY + len * Math.sin(posAngle)
-        };
+        if (parent.type === 'single' || parent.type === 'gnd') {
+            const startX = parent.x;
+            const startY = parent.y;
+            // Use 'angle' property, fallback to 45 if missing
+            const angleVal = (inst.properties.angle !== undefined) ? inst.properties.angle : 45;
+            const angleRad = angleVal * Math.PI / 180;
 
-        const nEnd = {
-            x: negX + len * Math.cos(negAngle),
-            y: negY + len * Math.sin(negAngle)
-        };
+            const end = {
+                x: startX + len * Math.cos(angleRad),
+                y: startY + len * Math.sin(angleRad)
+            };
 
-        return { posX, posY, negX, negY, pEnd, nEnd };
+            return { type: 'single', startX, startY, end };
+
+        } else {
+            // Differential logic
+            const pitch = parent.properties.pitch || 1.0;
+            const isVert = parent.properties.orientation === 'vertical';
+            const dx = isVert ? 0 : pitch / 2;
+            const dy = isVert ? pitch / 2 : 0;
+
+            const posX = parent.x + dx;
+            const posY = parent.y + dy;
+            const negX = parent.x - dx;
+            const negY = parent.y - dy;
+
+            const posAngle = (inst.properties.posAngle || 45) * Math.PI / 180;
+            const negAngle = (inst.properties.negAngle || 135) * Math.PI / 180;
+
+            const pEnd = {
+                x: posX + len * Math.cos(posAngle),
+                y: posY + len * Math.sin(posAngle)
+            };
+
+            const nEnd = {
+                x: negX + len * Math.cos(negAngle),
+                y: negY + len * Math.sin(negAngle)
+            };
+
+            return { type: 'differential', posX, posY, negX, negY, pEnd, nEnd };
+        }
     }
 }
