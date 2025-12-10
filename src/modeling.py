@@ -284,10 +284,10 @@ class DogBoneFeed:
             
             # Create Traces
             pts_p = [self._to_mil(pos_x_start, pos_y_start), self._to_mil(pos_x_end, pos_y_end)]
-            edb_project.edb.modeler.create_trace(pts_p, top_signal_layer, width, net_name=f"netp_{self.parent['name']}", end_cap_style="Round")
+            edb_project.edb.modeler.create_trace(pts_p, top_signal_layer, width, net_name=f"netn_{self.parent['name']}", end_cap_style="Round")
             
             pts_n = [self._to_mil(neg_x_start, neg_y_start), self._to_mil(neg_x_end, neg_y_end)]
-            edb_project.edb.modeler.create_trace(pts_n, top_signal_layer, width, net_name=f"netn_{self.parent['name']}", end_cap_style="Round")
+            edb_project.edb.modeler.create_trace(pts_n, top_signal_layer, width, net_name=f"netp_{self.parent['name']}", end_cap_style="Round")
             
             # Place Pads
             edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netp_{self.parent['name']}", is_pin=True)
