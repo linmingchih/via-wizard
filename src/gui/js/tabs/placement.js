@@ -99,7 +99,7 @@ export function placeInstance(x, y) {
     let name = nameInput ? nameInput.value.trim() : "";
 
     if (!name) {
-        const prefix = (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') ? 'DiffPair' : (state.placementMode === 'gnd' ? 'GND' : 'Via');
+        const prefix = (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') ? 'DiffPair' : (state.placementMode === 'gnd' ? 'GND' : (state.placementMode === 'dog_bone' ? 'DogBone' : 'Via'));
         let count = 1;
         while (state.placedInstances.some(i => i.name === `${prefix}_${count}`)) {
             count++;
@@ -153,6 +153,14 @@ export function placeInstance(x, y) {
         newInst.properties.feedInWidth = 15;
         newInst.properties.feedOut = "";
         newInst.properties.feedOutWidth = 15;
+    } else if (state.placementMode === 'dog_bone') {
+        newInst.properties.connectedDiffPairId = null;
+        newInst.properties.lineWidth = 5;
+        newInst.properties.length = 20;
+        newInst.properties.posAngle = 45;
+        newInst.properties.negAngle = 135;
+        newInst.properties.diameter = 10;
+        newInst.properties.isVoid = false;
     }
 
     state.placedInstances.push(newInst);
@@ -407,6 +415,46 @@ export function renderPropertiesPanel() {
         html += createWidthRow('feedInWidth', 'Feed In Width');
         html += createLayerRow('feedOut', 'Feed Out Layer');
         html += createWidthRow('feedOutWidth', 'Feed Out Width');
+    } else if (inst.type === 'dog_bone') {
+        // Connected Diff Pair
+        const diffPairs = state.placedInstances.filter(i => i.type === 'differential' || i.type === 'diff_gnd');
+        const diffOpts = diffPairs.map(dp => `<option value="${dp.id}" ${dp.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${dp.name}</option>`).join('');
+
+        html += `
+            <tr>
+                <td>Connect to</td>
+                <td>
+                    <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
+                        <option value="">-- Select Diff Pair --</option>
+                        ${diffOpts}
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td>Line Width</td>
+                <td><input type="number" value="${inst.properties.lineWidth}" oninput="window.updateInstanceProp(${inst.id}, 'lineWidth', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Length</td>
+                <td><input type="number" value="${inst.properties.length}" oninput="window.updateInstanceProp(${inst.id}, 'length', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Pos Angle</td>
+                <td><input type="number" value="${inst.properties.posAngle}" oninput="window.updateInstanceProp(${inst.id}, 'posAngle', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Neg Angle</td>
+                <td><input type="number" value="${inst.properties.negAngle}" oninput="window.updateInstanceProp(${inst.id}, 'negAngle', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Diameter</td>
+                <td><input type="number" value="${inst.properties.diameter}" oninput="window.updateInstanceProp(${inst.id}, 'diameter', this.value)"></td>
+            </tr>
+             <tr>
+                <td>Void</td>
+                <td><input type="checkbox" ${inst.properties.isVoid ? 'checked' : ''} onchange="window.updateInstanceProp(${inst.id}, 'isVoid', this.checked)"></td>
+            </tr>
+        `;
     }
 
     html += `</table>`;
@@ -464,6 +512,12 @@ export function updateInstanceProp(id, key, value) {
             }
         } else if (key === 'gndPadstackIndex') {
             inst.properties[key] = parseInt(value);
+        } else if (key === 'gndPadstackIndex') {
+            inst.properties[key] = parseInt(value);
+        } else if (key === 'connectedDiffPairId') {
+            inst.properties[key] = value ? parseInt(value) : null;
+        } else if (key === 'isVoid') {
+            inst.properties[key] = value; // value is boolean for checkbox
         } else {
             inst.properties[key] = value;
         }
