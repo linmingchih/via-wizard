@@ -64,8 +64,19 @@ export class PlacementCanvas {
         this.drawBoardOutline();
         this.drawAxes();
 
+        // Phase 1: Antipads
         state.placedInstances.forEach(inst => {
-            this.drawInstance(inst);
+            this.drawInstance(inst, 'antipad');
+        });
+
+        // Phase 2: Traces (Dogbones, Feeds)
+        state.placedInstances.forEach(inst => {
+            this.drawInstance(inst, 'trace');
+        });
+
+        // Phase 3: Vias
+        state.placedInstances.forEach(inst => {
+            this.drawInstance(inst, 'via');
         });
 
         this.drawRuler();
@@ -213,7 +224,7 @@ export class PlacementCanvas {
         this.ctx.stroke();
     }
 
-    drawInstance(inst) {
+    drawInstance(inst, phase) {
         const pIndex = inst.padstackIndex;
         if (pIndex < 0 || pIndex >= state.padstacks.length) return;
         const p = state.padstacks[pIndex];
@@ -231,158 +242,165 @@ export class PlacementCanvas {
         const boardH = parseFloat(document.getElementById('canvas-height')?.value) || 0;
 
         if (inst.type === 'single' || inst.type === 'gnd') {
-            const effectiveAntipad = (inst.type === 'gnd') ? 0 : antipadDiameter;
-            if (inst.type === 'single') {
-                this.drawFeedLine(inst.x, inst.y, inst.properties.feedInWidth, inst.properties.arrowDirection, true, boardW, boardH, inst);
-                this.drawFeedLine(inst.x, inst.y, inst.properties.feedOutWidth, inst.properties.arrowDirection, false, boardW, boardH, inst);
+            if (phase === 'antipad') {
+                const effectiveAntipad = (inst.type === 'gnd') ? 0 : antipadDiameter;
+                this.drawAntipadCircle(inst.x, inst.y, effectiveAntipad);
+            } else if (phase === 'trace') {
+                if (inst.type === 'single') {
+                    this.drawFeedLine(inst.x, inst.y, inst.properties.feedInWidth, inst.properties.arrowDirection, true, boardW, boardH, inst);
+                    this.drawFeedLine(inst.x, inst.y, inst.properties.feedOutWidth, inst.properties.arrowDirection, false, boardW, boardH, inst);
+                }
+            } else if (phase === 'via') {
+                this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
             }
-            this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection, effectiveAntipad);
         } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
             const pitch = inst.properties.pitch || 1.0;
             const isVert = inst.properties.orientation === 'vertical';
             const dx = isVert ? 0 : pitch / 2;
             const dy = isVert ? pitch / 2 : 0;
 
-            this.drawDiffFeeds(inst, true, boardW, boardH);
-            this.drawDiffFeeds(inst, false, boardW, boardH);
+            if (phase === 'antipad') {
+                if (antipadDiameter && antipadDiameter > 0) {
+                    this.ctx.beginPath();
+                    this.ctx.strokeStyle = '#aaa';
+                    this.ctx.setLineDash([4, 2]);
+                    this.ctx.lineWidth = 1 / state.canvasState.scale;
+                    const r = antipadDiameter / 2;
 
-            // Oblong Antipad
-            if (antipadDiameter && antipadDiameter > 0) {
-                this.ctx.beginPath();
-                this.ctx.strokeStyle = '#aaa';
-                this.ctx.setLineDash([4, 2]);
-                this.ctx.lineWidth = 1 / state.canvasState.scale;
-                const r = antipadDiameter / 2;
-
-                if (isVert) {
-                    this.ctx.arc(inst.x, inst.y + dy, r, 0, Math.PI, false);
-                    this.ctx.arc(inst.x, inst.y - dy, r, Math.PI, 0, false);
-                } else {
-                    this.ctx.arc(inst.x - dx, inst.y, r, Math.PI / 2, 3 * Math.PI / 2, false);
-                    this.ctx.arc(inst.x + dx, inst.y, r, -Math.PI / 2, Math.PI / 2, false);
+                    if (isVert) {
+                        this.ctx.arc(inst.x, inst.y + dy, r, 0, Math.PI, false);
+                        this.ctx.arc(inst.x, inst.y - dy, r, Math.PI, 0, false);
+                    } else {
+                        this.ctx.arc(inst.x - dx, inst.y, r, Math.PI / 2, 3 * Math.PI / 2, false);
+                        this.ctx.arc(inst.x + dx, inst.y, r, -Math.PI / 2, Math.PI / 2, false);
+                    }
+                    this.ctx.closePath();
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
                 }
-                this.ctx.closePath();
+            } else if (phase === 'trace') {
+                this.drawDiffFeeds(inst, true, boardW, boardH);
+                this.drawDiffFeeds(inst, false, boardW, boardH);
+
+                // Link line
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = '#666';
+                this.ctx.setLineDash([0.5, 0.5]);
+                this.ctx.lineWidth = 0.5 / state.canvasState.scale;
+                this.ctx.moveTo(inst.x - dx, inst.y - dy);
+                this.ctx.lineTo(inst.x + dx, inst.y + dy);
                 this.ctx.stroke();
                 this.ctx.setLineDash([]);
-            }
+            } else if (phase === 'via') {
+                this.drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
+                this.drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
 
-            this.drawVia(inst.x - dx, inst.y - dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, 0);
-            this.drawVia(inst.x + dx, inst.y + dy, diameter, color, p.holeDiameter, inst.properties.arrowDirection, 0);
+                // Draw GND Vias for diff_gnd
+                if (inst.type === 'diff_gnd') {
+                    const gndR = inst.properties.gndRadius || 15;
+                    const gndN = inst.properties.gndCount || 3;
+                    const gndStep = inst.properties.gndAngleStep || 30;
+                    const gndPIndex = inst.properties.gndPadstackIndex;
 
-            // Link line
-            this.ctx.beginPath();
-            this.ctx.strokeStyle = '#666';
-            this.ctx.setLineDash([0.5, 0.5]);
-            this.ctx.lineWidth = 0.5 / state.canvasState.scale;
-            this.ctx.moveTo(inst.x - dx, inst.y - dy);
-            this.ctx.lineTo(inst.x + dx, inst.y + dy);
-            this.ctx.stroke();
-            this.ctx.setLineDash([]);
+                    let gndDiam = 10;
+                    let gndHole = 6;
+                    let gndColor = '#998877';
 
-            // Draw GND Vias for diff_gnd
-            if (inst.type === 'diff_gnd') {
-                const gndR = inst.properties.gndRadius || 15;
-                const gndN = inst.properties.gndCount || 3;
-                const gndStep = inst.properties.gndAngleStep || 30;
-                const gndPIndex = inst.properties.gndPadstackIndex;
-
-                let gndDiam = 10;
-                let gndHole = 6;
-                let gndColor = '#998877';
-
-                if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
-                    const gp = state.padstacks[gndPIndex];
-                    gndDiam = gp.padSize || 10;
-                    gndHole = gp.holeDiameter || 6;
-                }
-
-                // Calculate angles
-                const angles = [];
-                if (gndN % 2 !== 0) { // Odd
-                    angles.push(0);
-                    for (let i = 1; i <= (gndN - 1) / 2; i++) {
-                        angles.push(i * gndStep);
-                        angles.push(-i * gndStep);
+                    if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
+                        const gp = state.padstacks[gndPIndex];
+                        gndDiam = gp.padSize || 10;
+                        gndHole = gp.holeDiameter || 6;
                     }
-                } else { // Even
-                    for (let i = 1; i <= gndN / 2; i++) {
-                        const angle = (2 * i - 1) * gndStep / 2;
-                        angles.push(angle);
-                        angles.push(-angle);
+
+                    // Calculate angles
+                    const angles = [];
+                    if (gndN % 2 !== 0) { // Odd
+                        angles.push(0);
+                        for (let i = 1; i <= (gndN - 1) / 2; i++) {
+                            angles.push(i * gndStep);
+                            angles.push(-i * gndStep);
+                        }
+                    } else { // Even
+                        for (let i = 1; i <= gndN / 2; i++) {
+                            const angle = (2 * i - 1) * gndStep / 2;
+                            angles.push(angle);
+                            angles.push(-angle);
+                        }
                     }
+
+                    // Signal Via Centers
+                    const s1 = { x: inst.x - dx, y: inst.y - dy };
+                    const s2 = { x: inst.x + dx, y: inst.y + dy };
+
+                    let angleBase1, angleBase2;
+
+                    if (isVert) {
+                        angleBase1 = 270; // Bottom via, outward is down
+                        angleBase2 = 90;  // Top via, outward is up
+                    } else {
+                        angleBase1 = 180; // Left via, outward is left
+                        angleBase2 = 0;   // Right via, outward is right
+                    }
+
+                    const drawGnds = (center, baseAngle) => {
+                        angles.forEach(a => {
+                            const rad = (baseAngle + a) * Math.PI / 180;
+                            const gx = center.x + gndR * Math.cos(rad);
+                            const gy = center.y + gndR * Math.sin(rad);
+                            this.drawVia(gx, gy, gndDiam, gndColor, gndHole, null);
+                        });
+                    };
+
+                    drawGnds(s1, angleBase1);
+                    drawGnds(s2, angleBase2);
                 }
-
-                // Signal Via Centers
-                // 1. "Left" / "Bottom" (negative offset)
-                const s1 = { x: inst.x - dx, y: inst.y - dy };
-                // 2. "Right" / "Top" (positive offset)
-                const s2 = { x: inst.x + dx, y: inst.y + dy };
-
-                // Outward axes (in degrees)
-                // Horizontal: Left via (-dx) outward is -x (180), Right via (+dx) outward is +x (0)
-                // Vertical: Bottom via (-dy) outward is -y (270/-90), Top via (+dy) outward is +y (90)
-                let angleBase1, angleBase2;
-
-                if (isVert) {
-                    angleBase1 = 270; // Bottom via, outward is down
-                    angleBase2 = 90;  // Top via, outward is up
-                } else {
-                    angleBase1 = 180; // Left via, outward is left
-                    angleBase2 = 0;   // Right via, outward is right
-                }
-
-                const drawGnds = (center, baseAngle) => {
-                    angles.forEach(a => {
-                        const rad = (baseAngle + a) * Math.PI / 180;
-                        const gx = center.x + gndR * Math.cos(rad);
-                        const gy = center.y + gndR * Math.sin(rad);
-                        this.drawVia(gx, gy, gndDiam, gndColor, gndHole, null, 0);
-                    });
-                };
-
-                drawGnds(s1, angleBase1);
-                drawGnds(s2, angleBase2);
             }
         } else if (inst.type === 'dog_bone') {
             const geom = this.getDogBoneGeometry(inst);
             if (geom) {
-                const { posX, posY, negX, negY, pEnd, nEnd } = geom;
-                const lw = inst.properties.lineWidth || 5;
-                const diam = inst.properties.diameter || 10;
+                if (phase === 'trace') {
+                    const { posX, posY, negX, negY, pEnd, nEnd } = geom;
+                    const lw = inst.properties.lineWidth || 5;
+                    const diam = inst.properties.diameter || 10;
 
-                // Draw Lines
-                this.ctx.beginPath();
-                this.ctx.strokeStyle = '#cd7f32';
-                this.ctx.lineWidth = lw / state.canvasState.scale;
-                this.ctx.moveTo(posX, posY);
-                this.ctx.lineTo(pEnd.x, pEnd.y);
-                this.ctx.moveTo(negX, negY);
-                this.ctx.lineTo(nEnd.x, nEnd.y);
-                this.ctx.stroke();
+                    // Draw Lines
+                    this.ctx.beginPath();
+                    this.ctx.strokeStyle = '#cd7f32';
+                    this.ctx.lineWidth = lw / state.canvasState.scale;
+                    this.ctx.moveTo(posX, posY);
+                    this.ctx.lineTo(pEnd.x, pEnd.y);
+                    this.ctx.moveTo(negX, negY);
+                    this.ctx.lineTo(nEnd.x, nEnd.y);
+                    this.ctx.stroke();
 
-                // Draw End Circles
-                this.ctx.beginPath();
-                this.ctx.fillStyle = '#cd7f32';
-                this.ctx.arc(pEnd.x, pEnd.y, diam / 2, 0, 2 * Math.PI);
-                this.ctx.arc(nEnd.x, nEnd.y, diam / 2, 0, 2 * Math.PI);
-                this.ctx.fill();
+                    // Draw End Circles
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = '#cd7f32';
+                    this.ctx.arc(pEnd.x, pEnd.y, diam / 2, 0, 2 * Math.PI);
+                    this.ctx.arc(nEnd.x, nEnd.y, diam / 2, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                }
             } else {
-                // Not connected, draw placeholder
-                this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, 0, 0);
+                if (phase === 'via') {
+                    // Not connected, draw placeholder
+                    this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, 0);
+                }
             }
         }
     }
 
-    drawVia(x, y, diameter, color, holeDiameter, arrowDirection, antipadDiameter) {
-        if (antipadDiameter && antipadDiameter > 0) {
-            this.ctx.beginPath();
-            this.ctx.strokeStyle = '#aaa';
-            this.ctx.setLineDash([4, 2]);
-            this.ctx.lineWidth = 1 / state.canvasState.scale;
-            this.ctx.arc(x, y, antipadDiameter / 2, 0, 2 * Math.PI);
-            this.ctx.stroke();
-            this.ctx.setLineDash([]);
-        }
+    drawAntipadCircle(x, y, diameter) {
+        if (!diameter || diameter <= 0) return;
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = '#aaa';
+        this.ctx.setLineDash([4, 2]);
+        this.ctx.lineWidth = 1 / state.canvasState.scale;
+        this.ctx.arc(x, y, diameter / 2, 0, 2 * Math.PI);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+    }
+
+    drawVia(x, y, diameter, color, holeDiameter, arrowDirection) {
         this.ctx.beginPath();
         this.ctx.fillStyle = color;
         this.ctx.arc(x, y, diameter / 2, 0, 2 * Math.PI);
