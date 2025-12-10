@@ -287,8 +287,8 @@ class DogBoneFeed:
             )
             
         # Place Pads
-        edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netp_{self.parent['name']}")
-        edb_project.edb.padstacks.place(self._to_mil(neg_x_end, neg_y_end), pad_name, f"netn_{self.parent['name']}")
+        edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netp_{self.parent['name']}", is_pin=True)
+        edb_project.edb.padstacks.place(self._to_mil(neg_x_end, neg_y_end), pad_name, f"netn_{self.parent['name']}", is_pin=True)
         
         # 5. Create Void
         void_val = self.properties.get('void', 0)
