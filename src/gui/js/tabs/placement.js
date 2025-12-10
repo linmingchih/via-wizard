@@ -487,7 +487,7 @@ export function updateInstanceProp(id, key, value) {
     } else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
     } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'feedInD1' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutR') {
+        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'feedInD1' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutR' || key === 'lineWidth' || key === 'length' || key === 'posAngle' || key === 'negAngle' || key === 'diameter') {
             const val = parseFloat(value);
             if (val > 0) {
                 inst.properties[key] = val;
