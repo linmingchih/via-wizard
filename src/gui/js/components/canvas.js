@@ -366,7 +366,7 @@ export class PlacementCanvas {
                     // Draw Lines
                     this.ctx.beginPath();
                     this.ctx.strokeStyle = '#cd7f32';
-                    this.ctx.lineWidth = lw / state.canvasState.scale;
+                    this.ctx.lineWidth = lw;
                     this.ctx.moveTo(posX, posY);
                     this.ctx.lineTo(pEnd.x, pEnd.y);
                     this.ctx.moveTo(negX, negY);
