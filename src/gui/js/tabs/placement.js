@@ -160,7 +160,7 @@ export function placeInstance(x, y) {
         newInst.properties.posAngle = 45;
         newInst.properties.negAngle = 135;
         newInst.properties.diameter = 10;
-        newInst.properties.isVoid = false;
+        newInst.properties.void = 0;
     }
 
     state.placedInstances.push(newInst);
@@ -451,8 +451,8 @@ export function renderPropertiesPanel() {
                 <td><input type="number" value="${inst.properties.diameter}" oninput="window.updateInstanceProp(${inst.id}, 'diameter', this.value)"></td>
             </tr>
              <tr>
-                <td>Void</td>
-                <td><input type="checkbox" ${inst.properties.isVoid ? 'checked' : ''} onchange="window.updateInstanceProp(${inst.id}, 'isVoid', this.checked)"></td>
+                <td>Void(mil)</td>
+                <td><input type="number" min="0" value="${inst.properties.void}" oninput="window.updateInstanceProp(${inst.id}, 'void', this.value)"></td>
             </tr>
         `;
     }
@@ -516,8 +516,14 @@ export function updateInstanceProp(id, key, value) {
             inst.properties[key] = parseInt(value);
         } else if (key === 'connectedDiffPairId') {
             inst.properties[key] = value ? parseInt(value) : null;
-        } else if (key === 'isVoid') {
-            inst.properties[key] = value; // value is boolean for checkbox
+        } else if (key === 'void') {
+            const val = parseFloat(value);
+            if (!isNaN(val) && val >= 0) {
+                inst.properties[key] = val;
+            } else {
+                renderPropertiesPanel();
+                return;
+            }
         } else {
             inst.properties[key] = value;
         }
