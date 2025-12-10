@@ -343,6 +343,33 @@ export class PlacementCanvas {
                 drawGnds(s1, angleBase1);
                 drawGnds(s2, angleBase2);
             }
+        } else if (inst.type === 'dog_bone') {
+            const geom = this.getDogBoneGeometry(inst);
+            if (geom) {
+                const { posX, posY, negX, negY, pEnd, nEnd } = geom;
+                const lw = inst.properties.lineWidth || 5;
+                const diam = inst.properties.diameter || 10;
+
+                // Draw Lines
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = '#cd7f32';
+                this.ctx.lineWidth = lw / state.canvasState.scale;
+                this.ctx.moveTo(posX, posY);
+                this.ctx.lineTo(pEnd.x, pEnd.y);
+                this.ctx.moveTo(negX, negY);
+                this.ctx.lineTo(nEnd.x, nEnd.y);
+                this.ctx.stroke();
+
+                // Draw End Circles
+                this.ctx.beginPath();
+                this.ctx.fillStyle = '#cd7f32';
+                this.ctx.arc(pEnd.x, pEnd.y, diam / 2, 0, 2 * Math.PI);
+                this.ctx.arc(nEnd.x, nEnd.y, diam / 2, 0, 2 * Math.PI);
+                this.ctx.fill();
+            } else {
+                // Not connected, draw placeholder
+                this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, 0, 0);
+            }
         }
     }
 
@@ -649,6 +676,17 @@ export class PlacementCanvas {
                 const distSq = this.distToSegmentSquared({ x, y }, { x: x1, y: y1 }, { x: x2, y: y2 });
                 if (distSq <= radius * radius) return inst.id;
 
+            } else if (inst.type === 'dog_bone') {
+                const geom = this.getDogBoneGeometry(inst);
+                if (geom) {
+                    const { pEnd, nEnd } = geom;
+                    const diam = inst.properties.diameter || 10;
+                    const r = diam / 2;
+                    if (Math.hypot(pEnd.x - x, pEnd.y - y) <= r) return inst.id;
+                    if (Math.hypot(nEnd.x - x, nEnd.y - y) <= r) return inst.id;
+                } else {
+                    if (Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2) <= radius) return inst.id;
+                }
             } else {
                 const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
                 if (dist <= radius) return inst.id;
@@ -663,5 +701,39 @@ export class PlacementCanvas {
         let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
         t = Math.max(0, Math.min(1, t));
         return (p.x - (v.x + t * (w.x - v.x))) ** 2 + (p.y - (v.y + t * (w.y - v.y))) ** 2;
+    }
+
+    getDogBoneGeometry(inst) {
+        const connectedId = inst.properties.connectedDiffPairId;
+        if (!connectedId) return null;
+
+        const parent = state.placedInstances.find(i => i.id === connectedId);
+        if (!parent) return null;
+
+        const pitch = parent.properties.pitch || 1.0;
+        const isVert = parent.properties.orientation === 'vertical';
+        const dx = isVert ? 0 : pitch / 2;
+        const dy = isVert ? pitch / 2 : 0;
+
+        const posX = parent.x + dx;
+        const posY = parent.y + dy;
+        const negX = parent.x - dx;
+        const negY = parent.y - dy;
+
+        const len = inst.properties.length || 20;
+        const posAngle = (inst.properties.posAngle || 45) * Math.PI / 180;
+        const negAngle = (inst.properties.negAngle || 135) * Math.PI / 180;
+
+        const pEnd = {
+            x: posX + len * Math.cos(posAngle),
+            y: posY + len * Math.sin(posAngle)
+        };
+
+        const nEnd = {
+            x: negX + len * Math.cos(negAngle),
+            y: negY + len * Math.sin(negAngle)
+        };
+
+        return { posX, posY, negX, negY, pEnd, nEnd };
     }
 }
