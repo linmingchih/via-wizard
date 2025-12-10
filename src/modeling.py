@@ -3,6 +3,7 @@ import sys
 import json
 from pyedb import Edb
 from functools import partial
+import math
 
 # --- 1. PadstackConfig Class ---
 class PadstackConfig:
@@ -197,6 +198,130 @@ class ViaInstance:
                     trace_out_p, out_pts_p[-1], trace_out_n, out_pts_n[-1], self.name + '_OUT'
                 )
 
+# --- 2.5 DogBoneFeed Class ---
+class DogBoneFeed:
+    """Handles the creation of Dog Bone feeds (traces, pads, voids)."""
+    def __init__(self, data_dict, instance_map, units, to_mil_func):
+        self.name = data_dict['name']
+        self.properties = data_dict.get('properties', {})
+        self.units = units
+        self._to_mil = to_mil_func
+        
+        parent_id = self.properties.get('connectedDiffPairId')
+        self.parent = instance_map.get(parent_id)
+        
+    def process(self, edb_project):
+        if not self.parent:
+            print(f"Warning: DogBone {self.name} has no connected parent.")
+            return
+
+        # 1. Identify Layers
+        stackup = edb_project.data['stackup']
+        # Find top signal layer (first Conductor)
+        top_signal_layer = next((l['name'] for l in stackup if l['type'] == 'Conductor'), None)
+        # Find top reference layer (first isReference=True)
+        top_ref_layer = next((l['name'] for l in stackup if l.get('isReference')), None)
+
+        if not top_signal_layer:
+            print("Error: No signal layer found for DogBone.")
+            return
+
+        # 2. Calculate Geometry
+        # Parent properties
+        parent_props = self.parent.get('properties', {})
+        pitch = parent_props.get('pitch', 40)
+        is_vert = parent_props.get('orientation') == 'vertical'
+        
+        parent_x = self.parent['x']
+        parent_y = self.parent['y']
+        
+        dx = 0 if is_vert else pitch / 2
+        dy = pitch / 2 if is_vert else 0
+        
+        # Start points (centers of the diff pair vias)
+        pos_x_start = parent_x + dx
+        pos_y_start = parent_y + dy
+        neg_x_start = parent_x - dx
+        neg_y_start = parent_y - dy
+        
+        # Dogbone properties
+        length = self.properties.get('length', 20)
+        pos_angle_deg = self.properties.get('posAngle', 45)
+        neg_angle_deg = self.properties.get('negAngle', 135)
+        
+        pos_angle_rad = math.radians(float(pos_angle_deg))
+        neg_angle_rad = math.radians(float(neg_angle_deg))
+        
+        # End points
+        length = float(length)
+        pos_x_end = pos_x_start + length * math.cos(pos_angle_rad)
+        pos_y_end = pos_y_start + length * math.sin(pos_angle_rad)
+        
+        neg_x_end = neg_x_start + length * math.cos(neg_angle_rad)
+        neg_y_end = neg_y_start + length * math.sin(neg_angle_rad)
+
+        # 3. Create Traces
+        width_val = self.properties.get('lineWidth', 5)
+        width = f"{width_val}{self.units}"
+        
+        # Positive Trace
+        pts_p = [self._to_mil(pos_x_start, pos_y_start), self._to_mil(pos_x_end, pos_y_end)]
+        edb_project.edb.modeler.create_trace(pts_p, top_signal_layer, width, net_name=f"netp_{self.parent['name']}", end_cap_style="Round")
+        
+        # Negative Trace
+        pts_n = [self._to_mil(neg_x_start, neg_y_start), self._to_mil(neg_x_end, neg_y_end)]
+        edb_project.edb.modeler.create_trace(pts_n, top_signal_layer, width, net_name=f"netn_{self.parent['name']}", end_cap_style="Round")
+
+        # 4. Create Padstack
+        diam_val = self.properties.get('diameter', 10)
+        pad_name = f"dogbone_{diam_val}{self.units}"
+        
+        if pad_name not in edb_project.edb.padstacks.definitions:
+            edb_project.edb.padstacks.create(
+                padstackname=pad_name,
+                holediam="0",
+                paddiam=f"{diam_val}{self.units}",
+                antipaddiam="0",
+                start_layer=top_signal_layer,
+                stop_layer=top_signal_layer
+            )
+            
+        # Place Pads
+        edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netp_{self.parent['name']}")
+        edb_project.edb.padstacks.place(self._to_mil(neg_x_end, neg_y_end), pad_name, f"netn_{self.parent['name']}")
+        
+        # 5. Create Void
+        void_val = self.properties.get('void', 0)
+        if void_val > 0 and top_ref_layer:
+            ref_rect = edb_project.layer_rects.get(top_ref_layer)
+            if ref_rect:
+                # Create circle voids
+                # Note: create_circle takes (layer, x, y, radius)
+                # We need to pass values with units or floats. create_circle usually expects floats if no units, or strings with units.
+                # Let's use strings with units to be safe, matching _to_mil format.
+                
+                radius = f"{void_val/2}{self.units}"
+                
+                # Positive Void
+                void_p = edb_project.edb.modeler.create_circle(
+                    top_ref_layer,
+                    self._to_mil(pos_x_end, pos_y_end)[0], 
+                    self._to_mil(pos_x_end, pos_y_end)[1], 
+                    radius,
+                    net_name="GND"
+                )
+                edb_project.edb.modeler.add_void(ref_rect, void_p)
+                
+                # Negative Void
+                void_n = edb_project.edb.modeler.create_circle(
+                    top_ref_layer,
+                    self._to_mil(neg_x_end, neg_y_end)[0],
+                    self._to_mil(neg_x_end, neg_y_end)[1],
+                    radius,
+                    net_name="GND"
+                )
+                edb_project.edb.modeler.add_void(ref_rect, void_n)
+
 # --- 3. EdbProject Class (Facade/Controller) ---
 class EdbProject:
     """Manages the creation and configuration of the EDB project."""
@@ -301,8 +426,14 @@ class EdbProject:
         """Creates via objects, processes voids, places vias, and creates ports/traces."""
         padstack_list = self.data['padstacks']
         
+        # Build instance map for DogBones
+        self.instance_map = {inst['id']: inst for inst in self.data['placedInstances']}
+
         # 1. Instantiate ViaInstance objects
         for via_data in self.data['placedInstances']:
+            if via_data['type'] == 'dog_bone':
+                continue
+
             padstack_index = via_data['padstackIndex']
             # Find the corresponding PadstackConfig object using the index
             padstack_name = padstack_list[padstack_index]['name']
@@ -328,6 +459,12 @@ class EdbProject:
         # 4. Create Traces and Ports
         for via in self.via_instances:
             via.create_ports_and_traces(self._create_trace_partial, self.edb.hfss)
+
+        # 5. Process DogBones
+        for via_data in self.data['placedInstances']:
+             if via_data['type'] == 'dog_bone':
+                 db = DogBoneFeed(via_data, self.instance_map, self.units, self._to_mil)
+                 db.process(self)
 
         # 5. Create Components from Pins
         self.create_components_from_pins()
