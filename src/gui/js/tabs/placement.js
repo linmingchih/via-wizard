@@ -76,6 +76,48 @@ window.addEventListener('keydown', (e) => {
         }
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         pasteInstance();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+
+        // Get sorted instances (same as renderPlacedList)
+        const sortedInstances = [...state.placedInstances].sort((a, b) => {
+            const nameA = (a.name || a.type).toString();
+            const nameB = (b.name || b.type).toString();
+            return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        if (sortedInstances.length === 0) return;
+
+        let newId = null;
+        if (!state.selectedInstanceId) {
+            // If nothing selected, select first
+            newId = sortedInstances[0].id;
+        } else {
+            const idx = sortedInstances.findIndex(i => i.id === state.selectedInstanceId);
+            if (idx === -1) {
+                newId = sortedInstances[0].id;
+            } else {
+                if (e.key === 'ArrowUp') {
+                    if (idx > 0) newId = sortedInstances[idx - 1].id;
+                } else {
+                    if (idx < sortedInstances.length - 1) newId = sortedInstances[idx + 1].id;
+                }
+            }
+        }
+
+        if (newId) {
+            selectInstance(newId);
+            // Scroll into view
+            setTimeout(() => {
+                const list = document.getElementById('placed-list');
+                if (list) {
+                    const activeItem = list.querySelector('.active');
+                    if (activeItem) {
+                        activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                }
+            }, 0);
+        }
     }
 });
 
