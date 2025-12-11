@@ -408,6 +408,32 @@ export class PlacementCanvas {
                     this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, 0);
                 }
             }
+        } else if (inst.type === 'surround_via_array') {
+            if (phase === 'via') {
+                const geom = this.getSurroundViaArrayGeometry(inst);
+                if (geom) {
+                    const gndPIndex = inst.properties.gndPadstackIndex;
+                    let gndDiam = 10;
+                    let gndHole = 6;
+                    let gndColor = '#998877';
+
+                    if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
+                        const gp = state.padstacks[gndPIndex];
+                        gndDiam = gp.padSize || 10;
+                        gndHole = gp.holeDiameter || 6;
+                    }
+
+                    if (inst.id === state.selectedInstanceId) {
+                        gndColor = '#007acc';
+                    } else if (inst.id === this.hoveredInstanceId) {
+                        gndColor = '#4da6ff';
+                    }
+
+                    geom.centers.forEach(c => {
+                        this.drawVia(c.x, c.y, gndDiam, gndColor, gndHole, null);
+                    });
+                }
+            }
         }
     }
 
@@ -788,6 +814,21 @@ export class PlacementCanvas {
             } else {
                 if (Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2) <= radius) return true;
             }
+        } else if (inst.type === 'surround_via_array') {
+            const geom = this.getSurroundViaArrayGeometry(inst);
+            if (geom) {
+                const gndPIndex = inst.properties.gndPadstackIndex;
+                let gndRadius = 5;
+                if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
+                    const gp = state.padstacks[gndPIndex];
+                    const gMaxD = gp.padSize || gp.holeDiameter || 0;
+                    gndRadius = gMaxD / 2;
+                }
+
+                for (const c of geom.centers) {
+                    if (Math.sqrt((c.x - x) ** 2 + (c.y - y) ** 2) <= gndRadius) return true;
+                }
+            }
         } else {
             const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
             if (dist <= radius) return true;
@@ -853,6 +894,70 @@ export class PlacementCanvas {
 
             return { type: 'differential', posX, posY, negX, negY, pEnd, nEnd };
         }
+    }
+
+    getSurroundViaArrayGeometry(inst) {
+        const connectedId = inst.properties.connectedDiffPairId;
+        if (!connectedId) return null;
+
+        const parent = state.placedInstances.find(i => i.id === connectedId);
+        if (!parent) return null;
+
+        // Must be differential or diff_gnd
+        if (parent.type !== 'differential' && parent.type !== 'diff_gnd') return null;
+
+        const pitch = parent.properties.pitch || 1.0;
+        const isVert = parent.properties.orientation === 'vertical';
+        const dx = isVert ? 0 : pitch / 2;
+        const dy = isVert ? pitch / 2 : 0;
+
+        const s1 = { x: parent.x - dx, y: parent.y - dy };
+        const s2 = { x: parent.x + dx, y: parent.y + dy };
+
+        const gndR = inst.properties.gndRadius || 15;
+        const gndN = inst.properties.gndCount || 3;
+        const gndStep = inst.properties.gndAngleStep || 30;
+
+        const centers = [];
+
+        // Calculate angles
+        const angles = [];
+        if (gndN % 2 !== 0) { // Odd
+            angles.push(0);
+            for (let i = 1; i <= (gndN - 1) / 2; i++) {
+                angles.push(i * gndStep);
+                angles.push(-i * gndStep);
+            }
+        } else { // Even
+            for (let i = 1; i <= gndN / 2; i++) {
+                const angle = (2 * i - 1) * gndStep / 2;
+                angles.push(angle);
+                angles.push(-angle);
+            }
+        }
+
+        let angleBase1, angleBase2;
+        if (isVert) {
+            angleBase1 = 270;
+            angleBase2 = 90;
+        } else {
+            angleBase1 = 180;
+            angleBase2 = 0;
+        }
+
+        const addGnds = (center, baseAngle) => {
+            angles.forEach(a => {
+                const rad = (baseAngle + a) * Math.PI / 180;
+                const gx = center.x + gndR * Math.cos(rad);
+                const gy = center.y + gndR * Math.sin(rad);
+                centers.push({ x: gx, y: gy });
+            });
+        };
+
+        addGnds(s1, angleBase1);
+        addGnds(s2, angleBase2);
+
+        return { centers };
     }
 
     getSnapPoint(x, y) {
@@ -975,6 +1080,20 @@ export class PlacementCanvas {
                     centers.push({ x: geom.pEnd.x, y: geom.pEnd.y, radius: r });
                     centers.push({ x: geom.nEnd.x, y: geom.nEnd.y, radius: r });
                 }
+            }
+        } else if (inst.type === 'surround_via_array') {
+            const geom = this.getSurroundViaArrayGeometry(inst);
+            if (geom) {
+                const gndPIndex = inst.properties.gndPadstackIndex;
+                let gndRadius = 5;
+                if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
+                    const gp = state.padstacks[gndPIndex];
+                    const gMaxD = gp.padSize || gp.holeDiameter || 0;
+                    gndRadius = gMaxD / 2;
+                }
+                geom.centers.forEach(c => {
+                    centers.push({ x: c.x, y: c.y, radius: gndRadius });
+                });
             }
         }
         return centers;

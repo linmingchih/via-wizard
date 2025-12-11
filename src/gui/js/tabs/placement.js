@@ -99,7 +99,7 @@ export function placeInstance(x, y) {
     let name = nameInput ? nameInput.value.trim() : "";
 
     if (!name) {
-        const prefix = (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') ? 'DiffPair' : (state.placementMode === 'gnd' ? 'GND' : (state.placementMode === 'dog_bone' ? 'DogBone' : 'Via'));
+        const prefix = (state.placementMode === 'differential' || state.placementMode === 'diff_gnd') ? 'DiffPair' : (state.placementMode === 'gnd' ? 'GND' : (state.placementMode === 'dog_bone' ? 'DogBone' : (state.placementMode === 'surround_via_array' ? 'SurroundVia' : 'Via')));
         let count = 1;
         while (state.placedInstances.some(i => i.name === `${prefix}_${count}`)) {
             count++;
@@ -161,6 +161,12 @@ export function placeInstance(x, y) {
         newInst.properties.negAngle = 135;
         newInst.properties.diameter = 10;
         newInst.properties.void = 0;
+    } else if (state.placementMode === 'surround_via_array') {
+        newInst.properties.connectedDiffPairId = null;
+        newInst.properties.gndRadius = 15;
+        newInst.properties.gndCount = 3;
+        newInst.properties.gndAngleStep = 30;
+        newInst.properties.gndPadstackIndex = parseInt(padstackIndex);
     }
 
     state.placedInstances.push(newInst);
@@ -476,6 +482,50 @@ export function renderPropertiesPanel() {
              <tr>
                 <td>Void(mil)</td>
                 <td><input type="number" min="0" value="${inst.properties.void}" oninput="window.updateInstanceProp(${inst.id}, 'void', this.value)"></td>
+            </tr>
+        `;
+    } else if (inst.type === 'surround_via_array') {
+        const potentialParents = state.placedInstances.filter(i =>
+            i.id !== inst.id && (i.type === 'differential' || i.type === 'diff_gnd')
+        );
+        const parentOpts = potentialParents.map(p => `<option value="${p.id}" ${p.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+        html += `
+            <tr>
+                <td>Connect to</td>
+                <td>
+                    <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
+                        <option value="">-- Select Instance --</option>
+                        ${parentOpts}
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td>Radius</td>
+                <td><input type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Count</td>
+                <td><input type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
+            </tr>
+            <tr>
+                <td>Angle Step</td>
+                <td><input type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
+            </tr>
+        `;
+
+        const padstackOpts = state.padstacks.map((p, i) =>
+            `<option value="${i}" ${i === inst.properties.gndPadstackIndex ? 'selected' : ''}>${p.name}</option>`
+        ).join('');
+
+        html += `
+            <tr>
+                <td>Padstack</td>
+                <td>
+                    <select onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
+                        ${padstackOpts}
+                    </select>
+                </td>
             </tr>
         `;
     }
