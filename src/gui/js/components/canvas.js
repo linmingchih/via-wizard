@@ -576,8 +576,9 @@ export class PlacementCanvas {
             // Measure
             state.canvasState.isDragging = true;
             state.canvasState.dragType = 'measure';
-            state.canvasState.measureStart = { x: mouseX, y: mouseY };
-            state.canvasState.measureEnd = { x: mouseX, y: mouseY };
+            const snap = this.getSnapPoint(mouseX, mouseY);
+            state.canvasState.measureStart = snap;
+            state.canvasState.measureEnd = snap;
             this.draw();
         }
     }
@@ -606,7 +607,8 @@ export class PlacementCanvas {
                     if (this.callbacks.onUpdate) this.callbacks.onUpdate();
                 }
             } else if (state.canvasState.dragType === 'measure') {
-                state.canvasState.measureEnd = { x: mouseX, y: mouseY };
+                const snap = this.getSnapPoint(mouseX, mouseY);
+                state.canvasState.measureEnd = snap;
                 this.draw();
             }
         } else {
@@ -829,5 +831,130 @@ export class PlacementCanvas {
 
             return { type: 'differential', posX, posY, negX, negY, pEnd, nEnd };
         }
+    }
+
+    getSnapPoint(x, y) {
+        const snapDistScreen = 15; // pixels threshold
+        const snapDist = snapDistScreen / state.canvasState.scale;
+        const snapDistSq = snapDist * snapDist;
+
+        let bestPoint = { x, y };
+        let minDistSq = Infinity;
+
+        const check = (px, py) => {
+            const d2 = (px - x) ** 2 + (py - y) ** 2;
+            if (d2 < snapDistSq && d2 < minDistSq) {
+                minDistSq = d2;
+                bestPoint = { x: px, y: py };
+            }
+        };
+
+        state.placedInstances.forEach(inst => {
+            const centers = this.getInstanceCenters(inst);
+            centers.forEach(c => {
+                // Snap to center
+                check(c.x, c.y);
+
+                // Snap to ring (0, 45, 90...)
+                if (c.radius > 0) {
+                    for (let angle = 0; angle < 360; angle += 45) {
+                        const rad = angle * Math.PI / 180;
+                        const rx = c.x + c.radius * Math.cos(rad);
+                        const ry = c.y + c.radius * Math.sin(rad);
+                        check(rx, ry);
+                    }
+                }
+            });
+        });
+
+        return bestPoint;
+    }
+
+    getInstanceCenters(inst) {
+        const centers = [];
+        const pIndex = inst.padstackIndex;
+        let radius = 0;
+        if (pIndex >= 0 && pIndex < state.padstacks.length) {
+            const p = state.padstacks[pIndex];
+            const maxD = p.padSize || p.holeDiameter || 0;
+            radius = maxD / 2;
+        }
+
+        if (inst.type === 'single' || inst.type === 'gnd') {
+            centers.push({ x: inst.x, y: inst.y, radius });
+        } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
+            const pitch = inst.properties.pitch || 1.0;
+            const isVert = inst.properties.orientation === 'vertical';
+            const dx = isVert ? 0 : pitch / 2;
+            const dy = isVert ? pitch / 2 : 0;
+            centers.push({ x: inst.x - dx, y: inst.y - dy, radius });
+            centers.push({ x: inst.x + dx, y: inst.y + dy, radius });
+
+            if (inst.type === 'diff_gnd') {
+                const gndR = inst.properties.gndRadius || 15;
+                const gndN = inst.properties.gndCount || 3;
+                const gndStep = inst.properties.gndAngleStep || 30;
+                const gndPIndex = inst.properties.gndPadstackIndex;
+                let gndRadius = 5;
+                if (gndPIndex >= 0 && gndPIndex < state.padstacks.length) {
+                    const gp = state.padstacks[gndPIndex];
+                    const gMaxD = gp.padSize || gp.holeDiameter || 0;
+                    gndRadius = gMaxD / 2;
+                }
+
+                // Calculate GND positions
+                const angles = [];
+                if (gndN % 2 !== 0) { // Odd
+                    angles.push(0);
+                    for (let i = 1; i <= (gndN - 1) / 2; i++) {
+                        angles.push(i * gndStep);
+                        angles.push(-i * gndStep);
+                    }
+                } else { // Even
+                    for (let i = 1; i <= gndN / 2; i++) {
+                        const angle = (2 * i - 1) * gndStep / 2;
+                        angles.push(angle);
+                        angles.push(-angle);
+                    }
+                }
+
+                const s1 = { x: inst.x - dx, y: inst.y - dy };
+                const s2 = { x: inst.x + dx, y: inst.y + dy };
+                let angleBase1, angleBase2;
+
+                if (isVert) {
+                    angleBase1 = 270;
+                    angleBase2 = 90;
+                } else {
+                    angleBase1 = 180;
+                    angleBase2 = 0;
+                }
+
+                const addGnds = (center, baseAngle) => {
+                    angles.forEach(a => {
+                        const rad = (baseAngle + a) * Math.PI / 180;
+                        const gx = center.x + gndR * Math.cos(rad);
+                        const gy = center.y + gndR * Math.sin(rad);
+                        centers.push({ x: gx, y: gy, radius: gndRadius });
+                    });
+                };
+
+                addGnds(s1, angleBase1);
+                addGnds(s2, angleBase2);
+            }
+        } else if (inst.type === 'dog_bone') {
+            const geom = this.getDogBoneGeometry(inst);
+            if (geom) {
+                const diam = inst.properties.diameter || 10;
+                const r = diam / 2;
+                if (geom.type === 'single') {
+                    centers.push({ x: geom.end.x, y: geom.end.y, radius: r });
+                } else {
+                    centers.push({ x: geom.pEnd.x, y: geom.pEnd.y, radius: r });
+                    centers.push({ x: geom.nEnd.x, y: geom.nEnd.y, radius: r });
+                }
+            }
+        }
+        return centers;
     }
 }
