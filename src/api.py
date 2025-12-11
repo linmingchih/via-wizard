@@ -341,6 +341,72 @@ class ViaWizardAPI:
                     }
                     new_instances.append(gnd_inst)
 
+            elif inst['type'] == 'surround_via_array':
+                # Find parent
+                props = inst.get('properties', {})
+                connected_id = props.get('connectedDiffPairId')
+                
+                # Find parent instance in the ORIGINAL data (not new_instances)
+                # But wait, we need to look it up. A map would be faster, but list search is fine for now.
+                parent = next((i for i in flattened_data['placedInstances'] if i['id'] == connected_id), None)
+                
+                if parent and (parent['type'] == 'differential' or parent['type'] == 'diff_gnd'):
+                    parent_props = parent.get('properties', {})
+                    pitch = float(parent_props.get('pitch', 1.0))
+                    orientation = parent_props.get('orientation', 'horizontal')
+                    is_vert = (orientation == 'vertical')
+                    
+                    dx = 0 if is_vert else pitch / 2
+                    dy = pitch / 2 if is_vert else 0
+                    
+                    s1 = {'x': parent['x'] - dx, 'y': parent['y'] - dy}
+                    s2 = {'x': parent['x'] + dx, 'y': parent['y'] + dy}
+                    
+                    gnd_radius = float(props.get('gndRadius', 15))
+                    gnd_count = int(props.get('gndCount', 3))
+                    gnd_angle_step = float(props.get('gndAngleStep', 30))
+                    gnd_padstack_index = int(props.get('gndPadstackIndex', 0))
+                    
+                    # Calculate angles
+                    angles = []
+                    if gnd_count % 2 != 0: # Odd
+                        angles.append(0)
+                        for i in range(1, (gnd_count - 1) // 2 + 1):
+                            angles.append(i * gnd_angle_step)
+                            angles.append(-i * gnd_angle_step)
+                    else: # Even
+                        for i in range(1, gnd_count // 2 + 1):
+                            angle = (2 * i - 1) * gnd_angle_step / 2
+                            angles.append(angle)
+                            angles.append(-angle)
+                            
+                    if is_vert:
+                        angle_base1 = 270
+                        angle_base2 = 90
+                    else:
+                        angle_base1 = 180
+                        angle_base2 = 0
+                        
+                    def add_gnds(center, base_angle, suffix_id):
+                        for i, ang in enumerate(angles):
+                            rad = math.radians(base_angle + ang)
+                            gx = center['x'] + gnd_radius * math.cos(rad)
+                            gy = center['y'] + gnd_radius * math.sin(rad)
+                            
+                            gnd_inst = {
+                                "id": int(f"{inst['id']}{suffix_id}{i}"),
+                                "name": f"{inst['name']}_GND_{suffix_id}_{i+1}",
+                                "type": "gnd",
+                                "x": gx,
+                                "y": gy,
+                                "padstackIndex": gnd_padstack_index,
+                                "properties": {}
+                            }
+                            new_instances.append(gnd_inst)
+
+                    add_gnds(s1, angle_base1, 1)
+                    add_gnds(s2, angle_base2, 2)
+
             else:
                 new_instances.append(inst)
                 

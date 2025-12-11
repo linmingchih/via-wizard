@@ -405,7 +405,7 @@ export class PlacementCanvas {
             } else {
                 if (phase === 'via') {
                     // Not connected, draw placeholder
-                    this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, 0);
+                    this.drawDisconnectedPlaceholder(inst.x, inst.y, color);
                 }
             }
         } else if (inst.type === 'surround_via_array') {
@@ -432,6 +432,9 @@ export class PlacementCanvas {
                     geom.centers.forEach(c => {
                         this.drawVia(c.x, c.y, gndDiam, gndColor, gndHole, null);
                     });
+                } else {
+                    // Not connected
+                    this.drawDisconnectedPlaceholder(inst.x, inst.y, color);
                 }
             }
         }
@@ -567,6 +570,33 @@ export class PlacementCanvas {
         this.ctx.translate(x, y);
         this.ctx.scale(1, -1);
         this.ctx.fillText(text, 0, 0);
+        this.ctx.restore();
+    }
+
+    drawDisconnectedPlaceholder(x, y, color) {
+        const size = 20; // Fixed size in world units? Or screen units? Let's use world units relative to scale?
+        // Actually, let's make it a fixed world size, e.g., 20mil
+        const half = size / 2;
+
+        this.ctx.save();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 2 / state.canvasState.scale;
+        this.ctx.setLineDash([2 / state.canvasState.scale, 2 / state.canvasState.scale]);
+
+        // Draw Box
+        this.ctx.strokeRect(x - half, y - half, size, size);
+
+        // Draw Question Mark
+        this.ctx.fillStyle = color;
+        this.ctx.translate(x, y);
+        this.ctx.scale(1, -1); // Unflip text
+
+        const fontSize = 16 / state.canvasState.scale; // Scale font with zoom
+        this.ctx.font = `bold ${fontSize}px monospace`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText("?", 0, 0);
+
         this.ctx.restore();
     }
 
@@ -812,7 +842,9 @@ export class PlacementCanvas {
                     if (this.distToSegmentSquared({ x, y }, { x: geom.negX, y: geom.negY }, { x: nEnd.x, y: nEnd.y }) <= lw2) return true;
                 }
             } else {
-                if (Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2) <= radius) return true;
+                // Check placeholder (20x20 box)
+                const size = 20;
+                if (Math.abs(inst.x - x) <= size / 2 && Math.abs(inst.y - y) <= size / 2) return true;
             }
         } else if (inst.type === 'surround_via_array') {
             const geom = this.getSurroundViaArrayGeometry(inst);
@@ -828,6 +860,10 @@ export class PlacementCanvas {
                 for (const c of geom.centers) {
                     if (Math.sqrt((c.x - x) ** 2 + (c.y - y) ** 2) <= gndRadius) return true;
                 }
+            } else {
+                // Check placeholder (20x20 box)
+                const size = 20;
+                if (Math.abs(inst.x - x) <= size / 2 && Math.abs(inst.y - y) <= size / 2) return true;
             }
         } else {
             const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
@@ -1091,9 +1127,13 @@ export class PlacementCanvas {
                     const gMaxD = gp.padSize || gp.holeDiameter || 0;
                     gndRadius = gMaxD / 2;
                 }
-                geom.centers.forEach(c => {
-                    centers.push({ x: c.x, y: c.y, radius: gndRadius });
-                });
+                for (const c of geom.centers) {
+                    if (Math.sqrt((c.x - x) ** 2 + (c.y - y) ** 2) <= gndRadius) return true;
+                }
+            } else {
+                // Check placeholder (20x20 box)
+                const size = 20;
+                if (Math.abs(inst.x - x) <= size / 2 && Math.abs(inst.y - y) <= size / 2) return true;
             }
         }
         return centers;
