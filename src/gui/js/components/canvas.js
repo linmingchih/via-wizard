@@ -9,6 +9,8 @@ export class PlacementCanvas {
         this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
         this.callbacks = callbacks || {}; // onSelect, onPlace, onUpdate
 
+        this.hoveredInstanceId = null;
+
         if (this.canvas && this.wrapper) {
             this.init();
         }
@@ -236,7 +238,12 @@ export class PlacementCanvas {
 
         let color = '#b87333';
         if (inst.type === 'gnd') color = '#998877';
-        if (inst.id === state.selectedInstanceId) color = '#007acc';
+
+        if (inst.id === state.selectedInstanceId) {
+            color = '#007acc';
+        } else if (inst.id === this.hoveredInstanceId) {
+            color = '#4da6ff'; // Lighter blue for hover
+        }
 
         const boardW = parseFloat(document.getElementById('canvas-width')?.value) || 0;
         const boardH = parseFloat(document.getElementById('canvas-height')?.value) || 0;
@@ -363,9 +370,10 @@ export class PlacementCanvas {
                     const diam = inst.properties.diameter || 10;
 
                     this.ctx.beginPath();
-                    this.ctx.strokeStyle = '#cd7f32';
+                    this.ctx.beginPath();
+                    this.ctx.strokeStyle = color;
                     this.ctx.lineWidth = lw;
-                    this.ctx.fillStyle = '#cd7f32';
+                    this.ctx.fillStyle = color;
 
                     if (geom.type === 'single') {
                         // Draw Single Line
@@ -603,6 +611,12 @@ export class PlacementCanvas {
             }
         } else {
             const hoveredId = this.checkSelection(mouseX, mouseY);
+
+            if (this.hoveredInstanceId !== hoveredId) {
+                this.hoveredInstanceId = hoveredId;
+                this.draw();
+            }
+
             this.canvas.style.cursor = hoveredId ? 'grab' : 'crosshair';
         }
     }
@@ -638,6 +652,10 @@ export class PlacementCanvas {
         const mouseX = (e.clientX - rect.left - state.canvasState.offsetX) / state.canvasState.scale;
         const mouseY = -(e.clientY - rect.top - state.canvasState.offsetY) / state.canvasState.scale;
         const hoveredId = this.checkSelection(mouseX, mouseY);
+        if (this.hoveredInstanceId !== hoveredId) {
+            this.hoveredInstanceId = hoveredId;
+            this.draw();
+        }
         this.canvas.style.cursor = hoveredId ? 'grab' : 'crosshair';
     }
 
@@ -681,55 +699,76 @@ export class PlacementCanvas {
     }
 
     checkSelection(x, y) {
+        const hits = [];
         for (let i = state.placedInstances.length - 1; i >= 0; i--) {
             const inst = state.placedInstances[i];
-            let radius = 0.5;
-            const pIndex = inst.padstackIndex;
-            if (pIndex >= 0 && pIndex < state.padstacks.length) {
-                const p = state.padstacks[pIndex];
-                let maxD = p.padSize || p.holeDiameter || 0;
-                if (maxD > 0) radius = maxD / 2;
-            }
-
-            if (inst.type === 'differential' || inst.type === 'diff_gnd') {
-                const pitch = inst.properties.pitch || 1.0;
-                const isVert = inst.properties.orientation === 'vertical';
-                const dx = isVert ? 0 : pitch / 2;
-                const dy = isVert ? pitch / 2 : 0;
-                const x1 = inst.x - dx;
-                const y1 = inst.y - dy;
-                const x2 = inst.x + dx;
-                const y2 = inst.y + dy;
-
-                if (Math.sqrt((x1 - x) ** 2 + (y1 - y) ** 2) <= radius) return inst.id;
-                if (Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2) <= radius) return inst.id;
-
-                // Simple segment check
-                const distSq = this.distToSegmentSquared({ x, y }, { x: x1, y: y1 }, { x: x2, y: y2 });
-                if (distSq <= radius * radius) return inst.id;
-
-            } else if (inst.type === 'dog_bone') {
-                const geom = this.getDogBoneGeometry(inst);
-                if (geom) {
-                    const diam = inst.properties.diameter || 10;
-                    const r = diam / 2;
-
-                    if (geom.type === 'single') {
-                        if (Math.hypot(geom.end.x - x, geom.end.y - y) <= r) return inst.id;
-                    } else {
-                        const { pEnd, nEnd } = geom;
-                        if (Math.hypot(pEnd.x - x, pEnd.y - y) <= r) return inst.id;
-                        if (Math.hypot(nEnd.x - x, nEnd.y - y) <= r) return inst.id;
-                    }
-                } else {
-                    if (Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2) <= radius) return inst.id;
-                }
-            } else {
-                const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
-                if (dist <= radius) return inst.id;
+            if (this.isPointInInstance(inst, x, y)) {
+                hits.push(inst);
             }
         }
-        return null;
+
+        if (hits.length === 0) return null;
+
+        // Priority: Vias > Dogbones
+        const viaHit = hits.find(inst => inst.type !== 'dog_bone');
+        if (viaHit) return viaHit.id;
+
+        return hits[0].id;
+    }
+
+    isPointInInstance(inst, x, y) {
+        let radius = 0.5;
+        const pIndex = inst.padstackIndex;
+        if (pIndex >= 0 && pIndex < state.padstacks.length) {
+            const p = state.padstacks[pIndex];
+            let maxD = p.padSize || p.holeDiameter || 0;
+            if (maxD > 0) radius = maxD / 2;
+        }
+
+        if (inst.type === 'differential' || inst.type === 'diff_gnd') {
+            const pitch = inst.properties.pitch || 1.0;
+            const isVert = inst.properties.orientation === 'vertical';
+            const dx = isVert ? 0 : pitch / 2;
+            const dy = isVert ? pitch / 2 : 0;
+            const x1 = inst.x - dx;
+            const y1 = inst.y - dy;
+            const x2 = inst.x + dx;
+            const y2 = inst.y + dy;
+
+            if (Math.sqrt((x1 - x) ** 2 + (y1 - y) ** 2) <= radius) return true;
+            if (Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2) <= radius) return true;
+
+            // Simple segment check
+            const distSq = this.distToSegmentSquared({ x, y }, { x: x1, y: y1 }, { x: x2, y: y2 });
+            if (distSq <= radius * radius) return true;
+
+        } else if (inst.type === 'dog_bone') {
+            const geom = this.getDogBoneGeometry(inst);
+            if (geom) {
+                const diam = inst.properties.diameter || 10;
+                const r = diam / 2;
+
+                if (geom.type === 'single') {
+                    if (Math.hypot(geom.end.x - x, geom.end.y - y) <= r) return true;
+                    // Check line
+                    if (this.distToSegmentSquared({ x, y }, { x: geom.startX, y: geom.startY }, { x: geom.end.x, y: geom.end.y }) <= (inst.properties.lineWidth / 2) ** 2) return true;
+                } else {
+                    const { pEnd, nEnd } = geom;
+                    if (Math.hypot(pEnd.x - x, pEnd.y - y) <= r) return true;
+                    if (Math.hypot(nEnd.x - x, nEnd.y - y) <= r) return true;
+                    // Check lines
+                    const lw2 = (inst.properties.lineWidth / 2) ** 2;
+                    if (this.distToSegmentSquared({ x, y }, { x: geom.posX, y: geom.posY }, { x: pEnd.x, y: pEnd.y }) <= lw2) return true;
+                    if (this.distToSegmentSquared({ x, y }, { x: geom.negX, y: geom.negY }, { x: nEnd.x, y: nEnd.y }) <= lw2) return true;
+                }
+            } else {
+                if (Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2) <= radius) return true;
+            }
+        } else {
+            const dist = Math.sqrt((inst.x - x) ** 2 + (inst.y - y) ** 2);
+            if (dist <= radius) return true;
+        }
+        return false;
     }
 
     distToSegmentSquared(p, v, w) {
