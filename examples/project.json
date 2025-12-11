@@ -1,0 +1,768 @@
+{
+    "stackup": [
+        {
+            "name": "UNNAMED_000",
+            "type": "Dielectric",
+            "thickness": 1,
+            "dk": 2,
+            "df": 0,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "TOP",
+            "type": "Conductor",
+            "thickness": 2.1,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "AIR",
+            "isReference": false
+        },
+        {
+            "name": "UNNAMED_004",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_2_P",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_2_P_FILL",
+            "isReference": false,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_006",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_3",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_3_FILL",
+            "isReference": true,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_008",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_4_P",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_4_P_FILL",
+            "isReference": true,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_010",
+            "type": "Dielectric",
+            "thickness": 16,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_5",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_5_FILL",
+            "isReference": true,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_012",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_6",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_6_FILL",
+            "isReference": false,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_014",
+            "type": "Dielectric",
+            "thickness": 16,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_7_P",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_7_P_FILL",
+            "isReference": true,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_016",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_8",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_8_FILL",
+            "isReference": true,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_018",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "LAYER_9_P",
+            "type": "Conductor",
+            "thickness": 1.2,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "LAYER_9_P_FILL",
+            "isReference": true,
+            "dogBone": -1
+        },
+        {
+            "name": "UNNAMED_020",
+            "type": "Dielectric",
+            "thickness": 8,
+            "dk": 1,
+            "df": 0.035,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "BOTTOM",
+            "type": "Conductor",
+            "thickness": 2.1,
+            "dk": "",
+            "df": "",
+            "conductivity": 59590000,
+            "fillMaterial": "AIR",
+            "isReference": false
+        },
+        {
+            "name": "UNNAMED_024",
+            "type": "Dielectric",
+            "thickness": 1,
+            "dk": 1,
+            "df": 0,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "SIwave Regions",
+            "type": "Dielectric",
+            "thickness": 0,
+            "dk": 0,
+            "df": 0,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        },
+        {
+            "name": "Outline",
+            "type": "Dielectric",
+            "thickness": 0,
+            "dk": 0,
+            "df": 0,
+            "conductivity": "",
+            "fillMaterial": "",
+            "isReference": false
+        }
+    ],
+    "units": "mil",
+    "padstacks": [
+        {
+            "name": "Padstack_1",
+            "holeDiameter": 10,
+            "padSize": 18,
+            "antipadSize": 28,
+            "material": "Copper",
+            "plating": 100,
+            "startLayer": "TOP",
+            "stopLayer": "BOTTOM",
+            "backdrill": {
+                "enabled": true,
+                "diameter": 30,
+                "mode": "layer",
+                "toLayer": "LAYER_6",
+                "stub": 10,
+                "depth": 0
+            },
+            "layers": {},
+            "fill": {
+                "enabled": true,
+                "dk": 4,
+                "df": 0.02
+            }
+        }
+    ],
+    "placedInstances": [
+        {
+            "id": 1764995845375,
+            "name": "DiffPair_1",
+            "type": "diff_gnd",
+            "x": -15,
+            "y": 0,
+            "padstackIndex": 0,
+            "properties": {
+                "pitch": 40,
+                "orientation": "vertical",
+                "arrowDirection": 1,
+                "feedIn": "",
+                "feedInWidth": 5,
+                "feedInSpacing": 5,
+                "feedOut": "LAYER_6",
+                "feedOutWidth": 5,
+                "feedOutSpacing": 5,
+                "gndRadius": 32,
+                "gndCount": 1,
+                "gndAngleStep": 49,
+                "gndPadstackIndex": 0,
+                "feedInD1": -4,
+                "feedOutR": 15,
+                "feedOutAlpha": 90,
+                "feedOutD1": 26
+            },
+            "feedPaths": {
+                "feedIn": [
+                    [
+                        {
+                            "x": -15,
+                            "y": -20
+                        },
+                        {
+                            "x": -30,
+                            "y": -4.999999999999998
+                        },
+                        {
+                            "x": -150,
+                            "y": -4.999999999999983
+                        }
+                    ],
+                    [
+                        {
+                            "x": -15,
+                            "y": 20
+                        },
+                        {
+                            "x": -30,
+                            "y": 5.000000000000002
+                        },
+                        {
+                            "x": -150,
+                            "y": 5.000000000000017
+                        }
+                    ]
+                ],
+                "feedOut": [
+                    [
+                        {
+                            "x": -15,
+                            "y": -20
+                        },
+                        {
+                            "x": 0,
+                            "y": -5
+                        },
+                        {
+                            "x": 11.392295478639223,
+                            "y": -4.9845866686656395
+                        },
+                        {
+                            "x": 14.513743794882995,
+                            "y": -4.677174710915448
+                        },
+                        {
+                            "x": 17.548672077449663,
+                            "y": -3.885245406983736
+                        },
+                        {
+                            "x": 20.422350319672947,
+                            "y": -2.628298684595979
+                        },
+                        {
+                            "x": 23.064019026038018,
+                            "y": -0.9372847436243652
+                        },
+                        {
+                            "x": 25.40863154579836,
+                            "y": 1.1461580405508638
+                        },
+                        {
+                            "x": 27.398455737394677,
+                            "y": 3.570728392033161
+                        },
+                        {
+                            "x": 28.98449552538196,
+                            "y": 6.276725342081355
+                        },
+                        {
+                            "x": 30.127697346415687,
+                            "y": 9.197518265096257
+                        },
+                        {
+                            "x": 30.799911777592712,
+                            "y": 12.26118754575732
+                        },
+                        {
+                            "x": 31,
+                            "y": 15
+                        },
+                        {
+                            "x": 31.000000000000004,
+                            "y": 80
+                        }
+                    ],
+                    [
+                        {
+                            "x": -15,
+                            "y": 20
+                        },
+                        {
+                            "x": 0,
+                            "y": 5
+                        },
+                        {
+                            "x": 10.607704521360777,
+                            "y": 4.9845866686656395
+                        },
+                        {
+                            "x": 12.179290156323937,
+                            "y": 5.046524493061316
+                        },
+                        {
+                            "x": 13.721837753798763,
+                            "y": 5.35354991812913
+                        },
+                        {
+                            "x": 15.197364672513462,
+                            "y": 5.898102958944946
+                        },
+                        {
+                            "x": 16.569538542736176,
+                            "y": 6.66677491237594
+                        },
+                        {
+                            "x": 17.804571889798066,
+                            "y": 7.640638523852713
+                        },
+                        {
+                            "x": 18.872054093853755,
+                            "y": 8.795714039192646
+                        },
+                        {
+                            "x": 19.745700200269084,
+                            "y": 10.103559665732243
+                        },
+                        {
+                            "x": 20.403998142438923,
+                            "y": 11.531971903655322
+                        },
+                        {
+                            "x": 20.830738440261428,
+                            "y": 13.045778503035752
+                        },
+                        {
+                            "x": 21,
+                            "y": 15
+                        },
+                        {
+                            "x": 21.000000000000004,
+                            "y": 80
+                        }
+                    ]
+                ]
+            }
+        },
+        {
+            "id": 1765347010142,
+            "name": "DiffPair_2",
+            "type": "diff_gnd",
+            "x": -96,
+            "y": 0,
+            "padstackIndex": 0,
+            "properties": {
+                "pitch": 40,
+                "orientation": "vertical",
+                "arrowDirection": 1,
+                "feedIn": "",
+                "feedInWidth": 5,
+                "feedInSpacing": 5,
+                "feedOut": "LAYER_6",
+                "feedOutWidth": 5,
+                "feedOutSpacing": 5,
+                "gndRadius": 32,
+                "gndCount": 1,
+                "gndAngleStep": 49,
+                "gndPadstackIndex": 0,
+                "feedInD1": -4,
+                "feedOutR": 15,
+                "feedOutAlpha": 90,
+                "feedOutD1": 26
+            },
+            "feedPaths": {
+                "feedIn": [
+                    [
+                        {
+                            "x": -96,
+                            "y": -20
+                        },
+                        {
+                            "x": -111,
+                            "y": -4.999999999999998
+                        },
+                        {
+                            "x": -150,
+                            "y": -4.999999999999994
+                        }
+                    ],
+                    [
+                        {
+                            "x": -96,
+                            "y": 20
+                        },
+                        {
+                            "x": -111,
+                            "y": 5.000000000000002
+                        },
+                        {
+                            "x": -150,
+                            "y": 5.000000000000006
+                        }
+                    ]
+                ],
+                "feedOut": [
+                    [
+                        {
+                            "x": -96,
+                            "y": -20
+                        },
+                        {
+                            "x": -81,
+                            "y": -5
+                        },
+                        {
+                            "x": -69.60770452136077,
+                            "y": -4.9845866686656395
+                        },
+                        {
+                            "x": -66.48625620511702,
+                            "y": -4.677174710915448
+                        },
+                        {
+                            "x": -63.45132792255033,
+                            "y": -3.885245406983734
+                        },
+                        {
+                            "x": -60.577649680327056,
+                            "y": -2.628298684595981
+                        },
+                        {
+                            "x": -57.93598097396198,
+                            "y": -0.9372847436243652
+                        },
+                        {
+                            "x": -55.591368454201636,
+                            "y": 1.1461580405508638
+                        },
+                        {
+                            "x": -53.60154426260532,
+                            "y": 3.570728392033161
+                        },
+                        {
+                            "x": -52.01550447461804,
+                            "y": 6.276725342081355
+                        },
+                        {
+                            "x": -50.87230265358431,
+                            "y": 9.197518265096257
+                        },
+                        {
+                            "x": -50.20008822240729,
+                            "y": 12.26118754575732
+                        },
+                        {
+                            "x": -50,
+                            "y": 15
+                        },
+                        {
+                            "x": -49.99999999999999,
+                            "y": 80
+                        }
+                    ],
+                    [
+                        {
+                            "x": -96,
+                            "y": 20
+                        },
+                        {
+                            "x": -81,
+                            "y": 5
+                        },
+                        {
+                            "x": -70.39229547863923,
+                            "y": 4.9845866686656395
+                        },
+                        {
+                            "x": -68.82070984367606,
+                            "y": 5.046524493061316
+                        },
+                        {
+                            "x": -67.27816224620123,
+                            "y": 5.353549918129128
+                        },
+                        {
+                            "x": -65.80263532748654,
+                            "y": 5.898102958944948
+                        },
+                        {
+                            "x": -64.43046145726382,
+                            "y": 6.66677491237594
+                        },
+                        {
+                            "x": -63.19542811020194,
+                            "y": 7.640638523852713
+                        },
+                        {
+                            "x": -62.127945906146245,
+                            "y": 8.795714039192646
+                        },
+                        {
+                            "x": -61.254299799730916,
+                            "y": 10.103559665732243
+                        },
+                        {
+                            "x": -60.59600185756108,
+                            "y": 11.531971903655322
+                        },
+                        {
+                            "x": -60.16926155973857,
+                            "y": 13.045778503035752
+                        },
+                        {
+                            "x": -60,
+                            "y": 15
+                        },
+                        {
+                            "x": -59.99999999999999,
+                            "y": 80
+                        }
+                    ]
+                ]
+            }
+        },
+        {
+            "id": 1765347589930,
+            "name": "DogBone_1",
+            "type": "dog_bone",
+            "x": -128,
+            "y": 0,
+            "padstackIndex": 0,
+            "properties": {
+                "connectedDiffPairId": 1764995845375,
+                "lineWidth": 5,
+                "length": 20,
+                "posAngle": 45,
+                "negAngle": 135,
+                "diameter": 10,
+                "void": 0
+            },
+            "feedPaths": {
+                "feedIn": [],
+                "feedOut": []
+            }
+        },
+        {
+            "id": 1765347599629,
+            "name": "DogBone_2",
+            "type": "dog_bone",
+            "x": -112,
+            "y": 16,
+            "padstackIndex": 0,
+            "properties": {
+                "connectedDiffPairId": 1765347010142,
+                "lineWidth": 5,
+                "length": 20,
+                "posAngle": 45,
+                "negAngle": 135,
+                "diameter": 10,
+                "void": 0
+            },
+            "feedPaths": {
+                "feedIn": [],
+                "feedOut": []
+            }
+        },
+        {
+            "id": 1765409518153,
+            "name": "Via_1",
+            "type": "single",
+            "x": 90,
+            "y": 45,
+            "padstackIndex": 0,
+            "properties": {
+                "arrowDirection": 0,
+                "feedIn": "",
+                "feedInWidth": 20,
+                "feedOut": "",
+                "feedOutWidth": 15
+            },
+            "feedPaths": {
+                "feedIn": [
+                    [
+                        {
+                            "x": 90,
+                            "y": 45
+                        },
+                        {
+                            "x": 90,
+                            "y": -80
+                        }
+                    ]
+                ],
+                "feedOut": [
+                    [
+                        {
+                            "x": 90,
+                            "y": 45
+                        },
+                        {
+                            "x": 90,
+                            "y": 80
+                        }
+                    ]
+                ]
+            }
+        },
+        {
+            "id": 1765409522546,
+            "name": "DogBone_4",
+            "type": "dog_bone",
+            "x": 105,
+            "y": 60,
+            "padstackIndex": 0,
+            "properties": {
+                "connectedDiffPairId": 1765409518153,
+                "lineWidth": 10,
+                "length": 30,
+                "posAngle": 45,
+                "negAngle": 135,
+                "diameter": 20,
+                "void": 30,
+                "angle": 315
+            },
+            "feedPaths": {
+                "feedIn": [],
+                "feedOut": []
+            }
+        },
+        {
+            "id": 1765409530535,
+            "name": "GND_1",
+            "type": "gnd",
+            "x": 90,
+            "y": -45,
+            "padstackIndex": 0,
+            "properties": {},
+            "feedPaths": {
+                "feedIn": [],
+                "feedOut": []
+            }
+        },
+        {
+            "id": 1765409896971,
+            "name": "DogBone_5",
+            "type": "dog_bone",
+            "x": 75,
+            "y": -30,
+            "padstackIndex": 0,
+            "properties": {
+                "connectedDiffPairId": 1765409530535,
+                "lineWidth": 10,
+                "length": 30,
+                "posAngle": 45,
+                "negAngle": 135,
+                "diameter": 20,
+                "void": 30,
+                "angle": 135
+            },
+            "feedPaths": {
+                "feedIn": [],
+                "feedOut": []
+            }
+        }
+    ],
+    "canvasGridSpacing": 15,
+    "boardWidth": 300,
+    "boardHeight": 160
+}
