@@ -663,12 +663,34 @@ export class PlacementCanvas {
 
     handleWheel(e) {
         e.preventDefault();
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Convert mouse screen pos to world pos (before zoom)
+        // ScreenX = WorldX * Scale + OffsetX
+        // WorldX = (ScreenX - OffsetX) / Scale
+        const worldX = (mouseX - state.canvasState.offsetX) / state.canvasState.scale;
+        const worldY = (mouseY - state.canvasState.offsetY) / -state.canvasState.scale; // Y is flipped
+
         const scaleFactor = 1.1;
+        let newScale = state.canvasState.scale;
+
         if (e.deltaY < 0) {
-            state.canvasState.scale *= scaleFactor;
+            newScale *= scaleFactor;
         } else {
-            state.canvasState.scale /= scaleFactor;
+            newScale /= scaleFactor;
         }
+
+        // Update Scale
+        state.canvasState.scale = newScale;
+
+        // Calculate new Offsets to keep WorldX, WorldY at MouseX, MouseY
+        // MouseX = WorldX * NewScale + NewOffsetX
+        // NewOffsetX = MouseX - WorldX * NewScale
+        state.canvasState.offsetX = mouseX - worldX * newScale;
+        state.canvasState.offsetY = mouseY - worldY * -newScale;
+
         this.draw();
     }
 
