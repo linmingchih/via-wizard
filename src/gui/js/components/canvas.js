@@ -1128,12 +1128,11 @@ export class PlacementCanvas {
                     gndRadius = gMaxD / 2;
                 }
                 for (const c of geom.centers) {
-                    if (Math.sqrt((c.x - x) ** 2 + (c.y - y) ** 2) <= gndRadius) return true;
+                    centers.push({ x: c.x, y: c.y, radius: gndRadius });
                 }
             } else {
-                // Check placeholder (20x20 box)
-                const size = 20;
-                if (Math.abs(inst.x - x) <= size / 2 && Math.abs(inst.y - y) <= size / 2) return true;
+                // Placeholder center
+                centers.push({ x: inst.x, y: inst.y, radius: 10 });
             }
         }
         return centers;
