@@ -405,7 +405,7 @@ export class PlacementCanvas {
             } else {
                 if (phase === 'via') {
                     // Not connected, draw placeholder
-                    this.drawDisconnectedPlaceholder(inst.x, inst.y, color);
+                    this.drawDisconnectedPlaceholder(inst.x, inst.y, color, "DB");
                 }
             }
         } else if (inst.type === 'surround_via_array') {
@@ -434,7 +434,7 @@ export class PlacementCanvas {
                     });
                 } else {
                     // Not connected
-                    this.drawDisconnectedPlaceholder(inst.x, inst.y, color);
+                    this.drawDisconnectedPlaceholder(inst.x, inst.y, color, "GA");
                 }
             }
         }
@@ -573,7 +573,7 @@ export class PlacementCanvas {
         this.ctx.restore();
     }
 
-    drawDisconnectedPlaceholder(x, y, color) {
+    drawDisconnectedPlaceholder(x, y, color, text = "?") {
         const size = 20; // Fixed size in world units? Or screen units? Let's use world units relative to scale?
         // Actually, let's make it a fixed world size, e.g., 20mil
         const half = size / 2;
@@ -586,7 +586,7 @@ export class PlacementCanvas {
         // Draw Box
         this.ctx.strokeRect(x - half, y - half, size, size);
 
-        // Draw Question Mark
+        // Draw Text
         this.ctx.fillStyle = color;
         this.ctx.translate(x, y);
         this.ctx.scale(1, -1); // Unflip text
@@ -595,7 +595,7 @@ export class PlacementCanvas {
         this.ctx.font = `bold ${fontSize}px monospace`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText("?", 0, 0);
+        this.ctx.fillText(text, 0, 0);
 
         this.ctx.restore();
     }
