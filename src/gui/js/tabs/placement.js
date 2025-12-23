@@ -193,8 +193,12 @@ export function placeInstance(x, y) {
         newInst.properties.arrowDirection = 0;
         newInst.properties.feedIn = "";
         newInst.properties.feedInWidth = 15;
+        newInst.properties.feedInPour = false;
+        newInst.properties.feedInGap = 5;
         newInst.properties.feedOut = "";
         newInst.properties.feedOutWidth = 15;
+        newInst.properties.feedOutPour = false;
+        newInst.properties.feedOutGap = 5;
     } else if (state.placementMode === 'dog_bone') {
         newInst.properties.connectedDiffPairId = null;
         newInst.properties.lineWidth = 5;
@@ -459,10 +463,35 @@ export function renderPropertiesPanel() {
              `;
         };
 
+        const createPourGapRow = (pourProp, gapProp, layerProp) => {
+            const isEnabled = !!inst.properties[layerProp];
+            const pourVal = inst.properties[pourProp] || false;
+            const gapVal = inst.properties[gapProp] !== undefined ? inst.properties[gapProp] : 5;
+
+            return `
+                <tr>
+                    <td>Pour / Gap</td>
+                    <td style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" ${pourVal ? 'checked' : ''} 
+                            ${isEnabled ? '' : 'disabled'}
+                            onchange="window.updateInstanceProp(${inst.id}, '${pourProp}', this.checked)" title="Pour">
+                        <label>Pour</label>
+                        <input type="number" value="${gapVal}" style="width: 50px; margin-left: 10px;"
+                            ${isEnabled ? '' : 'disabled'}
+                            oninput="window.updateInstanceProp(${inst.id}, '${gapProp}', this.value)" title="Gap (mil)">
+                        <label>Gap</label>
+                    </td>
+                </tr>
+            `;
+        };
+
         html += createLayerRow('feedIn', 'Feed In Layer');
         html += createWidthRow('feedInWidth', 'Feed In Width');
+        html += createPourGapRow('feedInPour', 'feedInGap', 'feedIn');
+
         html += createLayerRow('feedOut', 'Feed Out Layer');
         html += createWidthRow('feedOutWidth', 'Feed Out Width');
+        html += createPourGapRow('feedOutPour', 'feedOutGap', 'feedOut');
     } else if (inst.type === 'dog_bone') {
         // Connected Parent (Diff Pair, Single, or GND)
         const potentialParents = state.placedInstances.filter(i =>
@@ -586,10 +615,11 @@ export function updateInstanceProp(id, key, value) {
     const inst = state.placedInstances.find(i => i.id === id);
     if (!inst) return;
 
+    // Handle name change
     if (key === 'name') {
         const newName = value.trim();
         if (!newName) {
-            alert("Name cannot be empty.");
+            alert('Name cannot be empty.');
             renderPropertiesPanel();
             return;
         }
@@ -599,62 +629,82 @@ export function updateInstanceProp(id, key, value) {
             return;
         }
         inst.name = newName;
-    } else if (key === 'x' || key === 'y') {
+    }
+    // Position updates
+    else if (key === 'x' || key === 'y') {
         inst[key] = parseFloat(value);
-    } else {
-        if (key === 'pitch' || key === 'width' || key === 'spacing' || key === 'feedInWidth' || key === 'feedOutWidth' || key === 'feedInSpacing' || key === 'feedOutSpacing' || key === 'gndRadius' || key === 'feedInD1' || key === 'feedInR' || key === 'feedOutD1' || key === 'feedOutR' || key === 'lineWidth' || key === 'length' || key === 'posAngle' || key === 'negAngle' || key === 'diameter' || key === 'angle') {
+    }
+    // Boolean pour properties
+    else if (key === 'feedInPour' || key === 'feedOutPour') {
+        inst.properties[key] = !!value;
+    }
+    // Gap numeric properties
+    else if (key === 'feedInGap' || key === 'feedOutGap') {
+        const val = parseFloat(value);
+        if (!isNaN(val) && val >= 0) {
+            inst.properties[key] = val;
+        } else {
+            renderPropertiesPanel();
+            return;
+        }
+    }
+    // Numeric properties (including widths, spacings, etc.)
+    else if (['pitch', 'width', 'spacing', 'feedInWidth', 'feedOutWidth', 'feedInSpacing', 'feedOutSpacing', 'gndRadius', 'feedInD1', 'feedInR', 'feedOutD1', 'feedOutR', 'lineWidth', 'length', 'posAngle', 'negAngle', 'diameter', 'angle', 'feedInAlpha', 'feedOutAlpha', 'gndCount', 'gndAngleStep'].includes(key)) {
+        const val = parseFloat(value);
+        if (!isNaN(val)) {
+            inst.properties[key] = val;
+        } else {
+            renderPropertiesPanel();
+            return;
+        }
+    }
+    // Optional D2 values
+    else if (key === 'feedInD2' || key === 'feedOutD2') {
+        if (value === '') {
+            inst.properties[key] = undefined;
+        } else {
             const val = parseFloat(value);
-            if (val > 0 || key === 'angle' || key === 'posAngle' || key === 'negAngle') {
-                // Angles can be negative or 0, others usually > 0. But let's keep it simple for now, maybe just allow any number for angles.
-                // Actually, the original code checked val > 0 for all these. 
-                // Let's relax it for angles if needed, but for now just adding 'angle' to the list.
-                // Wait, if I add it to the list, it enters the block where it checks val > 0.
-                // Angles might need to be 0 or negative. 
-                // Let's modify the check to allow any number for angles.
-                inst.properties[key] = val;
-            } else {
-                renderPropertiesPanel(); // Re-render to reset invalid input
-                return;
-            }
-        } else if (key === 'gndCount' || key === 'gndAngleStep' || key === 'feedInAlpha' || key === 'feedOutAlpha') {
-            inst.properties[key] = parseFloat(value);
-        } else if (key === 'feedInD2' || key === 'feedOutD2') {
-            // Allow empty string for "Auto"
-            if (value === "") {
-                inst.properties[key] = undefined;
-            } else {
-                const val = parseFloat(value);
-                if (val > 0) {
-                    inst.properties[key] = val;
-                } else {
-                    renderPropertiesPanel();
-                    return;
-                }
-            }
-        } else if (key === 'gndPadstackIndex') {
-            inst.properties[key] = parseInt(value);
-        } else if (key === 'gndPadstackIndex') {
-            inst.properties[key] = parseInt(value);
-        } else if (key === 'connectedDiffPairId') {
-            inst.properties[key] = value ? parseInt(value) : null;
-        } else if (key === 'void') {
-            const val = parseFloat(value);
-            if (!isNaN(val) && val >= 0) {
+            if (val > 0) {
                 inst.properties[key] = val;
             } else {
                 renderPropertiesPanel();
                 return;
             }
-        } else {
-            inst.properties[key] = value;
-        }
-
-        if (key === 'orientation') {
-            inst.properties.arrowDirection = (value === 'vertical') ? 1 : 0;
         }
     }
+    // Padstack index
+    else if (key === 'gndPadstackIndex') {
+        inst.properties[key] = parseInt(value);
+    }
+    // Connected diff pair reference
+    else if (key === 'connectedDiffPairId') {
+        inst.properties[key] = value ? parseInt(value) : null;
+    }
+    // Void clearance
+    else if (key === 'void') {
+        const val = parseFloat(value);
+        if (!isNaN(val) && val >= 0) {
+            inst.properties[key] = val;
+        } else {
+            renderPropertiesPanel();
+            return;
+        }
+    }
+    // Orientation handling
+    else if (key === 'orientation') {
+        inst.properties[key] = value;
+        inst.properties.arrowDirection = (value === 'vertical') ? 1 : 0;
+    }
+    // Fallback for any other property
+    else {
+        inst.properties[key] = value;
+    }
+
     if (canvasInstance) canvasInstance.draw();
     renderPlacedList();
+    if (key === 'feedIn' || key === 'feedOut') {
+        renderPropertiesPanel();
+    }
 }
 
 export function deleteInstance(id) {
