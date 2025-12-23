@@ -380,18 +380,24 @@ class EdbProject:
 
     def create_stackup(self):
         """Creates layers, materials, and reference ground planes."""
+        material_names =[]
         for layer in self.data['stackup']:
             if layer['thickness'] == 0:
                 continue
-            
-            material_name = f'm_{layer["name"]}'
-            layer_type = 'signal' if layer['type'] == 'Conductor' else 'dielectric'
 
+            layer_type = 'signal' if layer['type'] == 'Conductor' else 'dielectric'
+          
             # 1. Create Materials
             if layer['type'] == 'Conductor':
-                self.edb.materials.add_conductor_material(material_name, layer['conductivity'])
+                material_name = f"m_{layer['conductivity']}"
+                if material_name not in material_names:
+                    material_names.append(material_name)
+                    self.edb.materials.add_conductor_material(material_name, layer['conductivity'])
             else:
-                self.edb.materials.add_dielectric_material(material_name, layer['dk'], layer['df'])
+                material_name = f"m_{layer['dk']}_{layer['df']}"
+                if material_name not in material_names:
+                    material_names.append(material_name)
+                    self.edb.materials.add_dielectric_material(material_name, layer['dk'], layer['df'])
             
             # 2. Create Layers
             self.edb.stackup.add_layer_bottom(
