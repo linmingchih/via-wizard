@@ -274,16 +274,20 @@ export function renderPropertiesPanel() {
         </tr>
     `;
 
-    // Position (X, Y)
-    html += `
-        <tr>
-            <td>Position (X, Y)</td>
-            <td style="display: flex; gap: 5px;">
-                <input type="number" value="${inst.x}" oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
-                <input type="number" value="${inst.y}" oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
-            </td>
-        </tr>
-    `;
+    // Position (X, Y) - Only show if NOT a connected GND via
+    const isConnectedGnd = (inst.type === 'gnd' && inst.properties.connectedDiffPairId);
+
+    if (!isConnectedGnd) {
+        html += `
+            <tr>
+                <td>Position (X, Y)</td>
+                <td style="display: flex; gap: 5px;">
+                    <input type="number" value="${inst.x}" oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
+                    <input type="number" value="${inst.y}" oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
+                </td>
+            </tr>
+        `;
+    }
 
     if (inst.type === 'differential' || inst.type === 'diff_gnd') {
         const conductorLayers = state.currentStackup.filter(l => l.type === 'Conductor');
@@ -527,6 +531,36 @@ export function renderPropertiesPanel() {
         html += createLayerRow('feedOut', 'Feed Out Layer');
         html += createWidthRow('feedOutWidth', 'Feed Out Width');
         html += createPourGapRow('feedOutPour', 'feedOutGap', 'feedOut');
+    } else if (inst.type === 'gnd') {
+        // Connected Parent (Diff Pair or Single)
+        const potentialParents = state.placedInstances.filter(i =>
+            ['differential', 'diff_gnd', 'single'].includes(i.type)
+        );
+        const parentOpts = potentialParents.map(p => `<option value="${p.id}" ${p.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+        html += `
+            <tr>
+                <td>Connect to</td>
+                <td>
+                    <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
+                        <option value="">-- Independent --</option>
+                        ${parentOpts}
+                    </select>
+                </td>
+            </tr>
+        `;
+
+        if (inst.properties.connectedDiffPairId) {
+            html += `
+                <tr>
+                    <td>Relative Pos (X, Y)</td>
+                    <td style="display: flex; gap: 5px;">
+                        <input type="number" value="${inst.properties.relX !== undefined ? inst.properties.relX : 5}" oninput="window.updateInstanceProp(${inst.id}, 'relX', this.value)" title="Relative X">
+                        <input type="number" value="${inst.properties.relY !== undefined ? inst.properties.relY : 5}" oninput="window.updateInstanceProp(${inst.id}, 'relY', this.value)" title="Relative Y">
+                    </td>
+                </tr>
+            `;
+        }
     } else if (inst.type === 'dog_bone') {
         // Connected Parent (Diff Pair, Single, or GND)
         const potentialParents = state.placedInstances.filter(i =>
@@ -714,6 +748,15 @@ export function updateInstanceProp(id, key, value) {
     // Connected diff pair reference
     else if (key === 'connectedDiffPairId') {
         inst.properties[key] = value ? parseInt(value) : null;
+        if (inst.type === 'gnd' && inst.properties[key]) {
+            // Initialize relative position if not present
+            if (inst.properties.relX === undefined) inst.properties.relX = 5;
+            if (inst.properties.relY === undefined) inst.properties.relY = 5;
+        }
+    }
+    // Relative position for GND
+    else if (key === 'relX' || key === 'relY') {
+        inst.properties[key] = parseFloat(value);
     }
     // Void clearance
     else if (key === 'void') {
@@ -746,7 +789,7 @@ export function updateInstanceProp(id, key, value) {
 
     if (canvasInstance) canvasInstance.draw();
     renderPlacedList();
-    if (key === 'feedIn' || key === 'feedOut') {
+    if (key === 'feedIn' || key === 'feedOut' || key === 'connectedDiffPairId') {
         renderPropertiesPanel();
     }
 }
@@ -765,10 +808,10 @@ function copyInstance(id) {
 
     const itemsToCopy = [inst];
 
-    // If it's a differential pair, find connected children
-    if (inst.type === 'differential' || inst.type === 'diff_gnd') {
+    // If it's a differential pair or single via, find connected children
+    if (['differential', 'diff_gnd', 'single'].includes(inst.type)) {
         const children = state.placedInstances.filter(i =>
-            (i.type === 'dog_bone' || i.type === 'surround_via_array') &&
+            (i.type === 'dog_bone' || i.type === 'surround_via_array' || i.type === 'gnd') &&
             i.properties.connectedDiffPairId === inst.id
         );
         itemsToCopy.push(...children);

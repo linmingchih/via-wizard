@@ -258,7 +258,49 @@ export class PlacementCanvas {
                     this.drawFeedLine(inst.x, inst.y, inst.properties.feedOutWidth, inst.properties.arrowDirection, false, boardW, boardH, inst);
                 }
             } else if (phase === 'via') {
-                this.drawVia(inst.x, inst.y, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
+                let drawX = inst.x;
+                let drawY = inst.y;
+
+                // Handle Connected GND Via Position
+                if (inst.type === 'gnd' && inst.properties.connectedDiffPairId) {
+                    const parent = state.placedInstances.find(i => i.id === inst.properties.connectedDiffPairId);
+                    if (parent) {
+                        const relX = inst.properties.relX !== undefined ? inst.properties.relX : 5;
+                        const relY = inst.properties.relY !== undefined ? inst.properties.relY : 5;
+                        drawX = parent.x + relX;
+                        drawY = parent.y + relY;
+
+                        // Update the instance's actual X/Y to match (so selection works)
+                        // Note: This is a side-effect in draw, which is generally bad, but needed if we want the "model" to stay in sync for hit testing
+                        // A better way would be to update it in a separate update loop, but for now this ensures visual consistency.
+                        // Actually, let's NOT update state here to avoid loops, but we need to use these coords for drawing.
+                        // However, hit testing uses inst.x/y. So we MUST update inst.x/y.
+                        // But updating state during draw can cause issues.
+                        // Let's assume the "Update" loop handles this? No, we don't have a game loop.
+                        // We should update inst.x/y whenever the parent moves.
+                        // BUT, the requirement says "x, y is the relative coordinate".
+                        // If x/y ARE relative, then hit testing needs to account for that.
+                        // Let's check checkSelection.
+
+                        // Wait, if I change inst.x to be absolute here, it persists.
+                        // If the user requirement implies x/y in the property panel are relative, then `inst.x` in the model should probably be absolute for simplicity of the engine, 
+                        // OR `inst.x` is relative and we change the engine.
+                        // Given the existing engine uses `inst.x` for everything (drawing, hit testing), 
+                        // it is safer to keep `inst.x` as ABSOLUTE world coordinates, and `inst.properties.relX` as the offset.
+                        // We need to ensure that when Parent moves, Child moves.
+                        // AND when Child moves, it updates `relX` instead of just `x`.
+
+                        // So, in DRAW, we should just draw at inst.x/inst.y, assuming they are already correct?
+                        // No, if we want them to be "connected", we want to enforce the constraint.
+                        // Let's enforce it here for rendering, but we also need to update the model for hit detection.
+                        inst.x = parent.x + relX;
+                        inst.y = parent.y + relY;
+                        drawX = inst.x;
+                        drawY = inst.y;
+                    }
+                }
+
+                this.drawVia(drawX, drawY, diameter, color, p.holeDiameter, inst.properties.arrowDirection);
             }
         } else if (inst.type === 'differential' || inst.type === 'diff_gnd') {
             const pitch = inst.properties.pitch || 1.0;
@@ -780,8 +822,25 @@ export class PlacementCanvas {
                 const inst = state.placedInstances.find(i => i.id === state.canvasState.dragInstanceId);
                 if (inst) {
                     const snap = state.canvasState.gridSpacing;
-                    inst.x = Math.round(mouseX / snap) * snap;
-                    inst.y = Math.round(mouseY / snap) * snap;
+                    const newX = Math.round(mouseX / snap) * snap;
+                    const newY = Math.round(mouseY / snap) * snap;
+
+                    if (inst.type === 'gnd' && inst.properties.connectedDiffPairId) {
+                        const parent = state.placedInstances.find(i => i.id === inst.properties.connectedDiffPairId);
+                        if (parent) {
+                            // Calculate new relative position
+                            inst.properties.relX = newX - parent.x;
+                            inst.properties.relY = newY - parent.y;
+                            // inst.x/y will be updated in draw()
+                        } else {
+                            inst.x = newX;
+                            inst.y = newY;
+                        }
+                    } else {
+                        inst.x = newX;
+                        inst.y = newY;
+                    }
+
                     this.draw();
                     if (this.callbacks.onUpdate) this.callbacks.onUpdate();
                 }
