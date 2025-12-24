@@ -40,6 +40,8 @@ Via Wizard 是一個強大的 GUI 工具，旨在簡化 PCB 過孔 (Via) 的建�
 *   **優化介面**: "已放置實例 (Placed Instances)" 面板高度已調整，以提供更佳的屬性檢視體驗。
 *   **智慧複製/貼上 (Smart Copy/Paste)**: 複製和貼上實例時自動遞增名稱 (例如 `Via_1` -> `Via_2`) 以確保名稱唯一性。
 *   **尺規工具 (Ruler Tool)**: 使用**滑鼠右鍵**在畫布上測量距離。顯示長度、dx 和 dy，標籤不會重疊。
+*   **鋪銅視覺化 (Copper Pour Visualization)**: 直接在畫布上視覺化走線周圍的淨空/挖空 (Feed In/Out Pour)。
+*   **差分對饋線間距 (Differential Pair Feed Spacing)**: 明確控制差分對的饋線間距，確保精確的視覺化和匯出。
 
 ### 4. 模擬匯出 (Simulation Export)
 *   **AEDB 生成**: 將整個設計 (堆疊、焊盤、放置實例) 匯出為 Ansys AEDB 專案 (`.aedb`)。

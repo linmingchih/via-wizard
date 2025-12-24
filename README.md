@@ -40,6 +40,8 @@ Via Wizard is a powerful, GUI-based tool designed to streamline the creation and
 *   **Optimized UI**: The "Placed Instances" panel is optimized for better visibility of properties.
 *   **Smart Copy/Paste**: Copy and paste instances with automatic name incrementing (e.g., `Via_1` -> `Via_2`) to ensure unique naming.
 *   **Ruler Tool**: Measure distances on the canvas using the **Right Mouse Button**. Displays Length, dx, and dy with non-overlapping labels.
+*   **Copper Pour Visualization**: Visualize the clearance/void around traces (Feed In/Out Pour) directly on the canvas.
+*   **Differential Pair Feed Spacing**: Explicit control over feed line spacing for differential pairs, ensuring accurate visualization and export.
 
 ### 4. Simulation Export
 *   **AEDB Generation**: Export your entire design (stackup, padstacks, placed instances) to an Ansys AEDB project (`.aedb`).
