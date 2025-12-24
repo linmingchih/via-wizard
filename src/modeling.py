@@ -115,6 +115,25 @@ class ViaInstance:
                      via_fill_n.start_layer=self.padstack.bd_to_layer  
                      #via_fill_n.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
 
+    def _create_void_trace(self, path_points, layer_name, width_val, gap_val, edb_modeler, layer_rects):
+        """Creates a void trace on the reference layer."""
+        if not layer_name or layer_name not in layer_rects:
+            return
+            
+        void_width = f"{width_val + 2 * gap_val}{self._units}"
+        
+        # Create the void primitive
+        void_trace = edb_modeler.create_trace(
+            path_points,
+            layer_name,
+            void_width,
+            end_cap_style="Flat",
+            net_name="VOID_NET" 
+        )
+        
+        ref_rect = layer_rects[layer_name]
+        edb_modeler.add_void(ref_rect, void_trace)
+
     def create_void(self, edb_modeler, layer_rects: dict, layer_dogbone_map: dict):
         """Creates an antipad void on reference layers for differential vias."""
         if self.type != 'differential':
@@ -152,7 +171,7 @@ class ViaInstance:
             )
             edb_modeler.add_void(rect, void)
 
-    def create_ports_and_traces(self, create_trace_func, edb_hfss):
+    def create_ports_and_traces(self, create_trace_func, edb_hfss, edb_modeler, layer_rects):
         """Creates traces and ports for non-GND vias."""
         if self.type == 'gnd':
             return
@@ -167,6 +186,12 @@ class ViaInstance:
                 in_pts = self._get_feed_points(self.feed_paths['feedIn'][0])
                 trace_in = create_trace_func(in_pts, feed_in_layer, feed_in_width, 'net_'+self.name)
                 edb_hfss.create_wave_port(trace_in, in_pts[-1], self.name + '_IN')
+
+                # Create Void if Pour is enabled
+                if self.properties.get('feedInPour'):
+                    gap = self.properties.get('feedInGap', 5)
+                    width = self.properties.get('feedInWidth', 15)
+                    self._create_void_trace(in_pts, feed_in_layer, width, gap, edb_modeler, layer_rects)
             
             # Output Port
             if feed_out_layer:
@@ -174,6 +199,12 @@ class ViaInstance:
                 out_pts = self._get_feed_points(self.feed_paths['feedOut'][0])
                 trace_out = create_trace_func(out_pts, feed_out_layer, feed_out_width, 'net_'+self.name)
                 edb_hfss.create_wave_port(trace_out, out_pts[-1], self.name + '_OUT')
+
+                # Create Void if Pour is enabled
+                if self.properties.get('feedOutPour'):
+                    gap = self.properties.get('feedOutGap', 5)
+                    width = self.properties.get('feedOutWidth', 15)
+                    self._create_void_trace(out_pts, feed_out_layer, width, gap, edb_modeler, layer_rects)
 
         elif self.type == 'differential':
             # Input Port
@@ -186,6 +217,13 @@ class ViaInstance:
                 edb_hfss.create_differential_wave_port(
                     trace_in_p, in_pts_p[-1], trace_in_n, in_pts_n[-1], self.name + '_IN'
                 )
+
+                # Create Void if Pour is enabled
+                if self.properties.get('feedInPour'):
+                    gap = self.properties.get('feedInGap', 5)
+                    width = self.properties.get('feedInWidth', 5)
+                    self._create_void_trace(in_pts_p, feed_in_layer, width, gap, edb_modeler, layer_rects)
+                    self._create_void_trace(in_pts_n, feed_in_layer, width, gap, edb_modeler, layer_rects)
             
             # Output Port
             if feed_out_layer:
@@ -197,6 +235,13 @@ class ViaInstance:
                 edb_hfss.create_differential_wave_port(
                     trace_out_p, out_pts_p[-1], trace_out_n, out_pts_n[-1], self.name + '_OUT'
                 )
+
+                # Create Void if Pour is enabled
+                if self.properties.get('feedOutPour'):
+                    gap = self.properties.get('feedOutGap', 5)
+                    width = self.properties.get('feedOutWidth', 5)
+                    self._create_void_trace(out_pts_p, feed_out_layer, width, gap, edb_modeler, layer_rects)
+                    self._create_void_trace(out_pts_n, feed_out_layer, width, gap, edb_modeler, layer_rects)
 
 # --- 2.5 DogBoneFeed Class ---
 class DogBoneFeed:
@@ -480,7 +525,7 @@ class EdbProject:
 
         # 4. Create Traces and Ports
         for via in self.via_instances:
-            via.create_ports_and_traces(self._create_trace_partial, self.edb.hfss)
+            via.create_ports_and_traces(self._create_trace_partial, self.edb.hfss, self.edb.modeler, self.layer_rects)
 
         # 5. Process DogBones
         for via_data in self.data['placedInstances']:
