@@ -523,6 +523,36 @@ export class PlacementCanvas {
         this.ctx.globalAlpha = 1.0;
 
         this.drawLabel((x + edgeX) / 2, (y + edgeY) / 2, layerName);
+
+        // Draw Pour Outline
+        const pour = isFeedIn ? inst.properties.feedInPour : inst.properties.feedOutPour;
+        const gap = isFeedIn ? inst.properties.feedInGap : inst.properties.feedOutGap;
+
+        if (pour && gap !== undefined && gap >= 0) {
+            const pourWidth = width + 2 * gap;
+            this.ctx.save();
+            this.ctx.strokeStyle = '#aaa';
+            this.ctx.lineWidth = 1 / state.canvasState.scale;
+            this.ctx.setLineDash([4 / state.canvasState.scale, 2 / state.canvasState.scale]);
+
+            const halfW = pourWidth / 2;
+            let rx, ry, rw, rh;
+
+            if (Math.abs(edgeX - x) < 0.001) { // Vertical
+                rx = x - halfW;
+                rw = pourWidth;
+                ry = Math.min(y, edgeY);
+                rh = Math.abs(edgeY - y);
+            } else { // Horizontal
+                ry = y - halfW;
+                rh = pourWidth;
+                rx = Math.min(x, edgeX);
+                rw = Math.abs(edgeX - x);
+            }
+
+            this.ctx.strokeRect(rx, ry, rw, rh);
+            this.ctx.restore();
+        }
     }
 
     drawDiffFeeds(inst, isFeedIn, boardW, boardH) {
