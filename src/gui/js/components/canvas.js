@@ -600,8 +600,8 @@ export class PlacementCanvas {
         console.log(`Debug Diff Pour: Layer=${layerName}, isRef=${isRef}, Pour=${pour}, Gap=${gap}, Paths=${paths.length}`);
 
         if (pour && gap !== undefined && gap >= 0 && paths.length === 2) {
-            const pitch = inst.properties.pitch || 0;
-            const pourWidth = pitch + width + 2 * gap;
+            const spacing = isFeedIn ? (inst.properties.feedInSpacing || 0) : (inst.properties.feedOutSpacing || 0);
+            const pourWidth = 2 * width + spacing + 2 * gap;
             const offset = pourWidth / 2;
 
             // Calculate Center Path
