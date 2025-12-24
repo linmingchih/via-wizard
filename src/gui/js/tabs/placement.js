@@ -179,9 +179,13 @@ export function placeInstance(x, y) {
         newInst.properties.feedIn = "";
         newInst.properties.feedInWidth = 5;
         newInst.properties.feedInSpacing = 5;
+        newInst.properties.feedInPour = false;
+        newInst.properties.feedInGap = 5;
         newInst.properties.feedOut = "";
         newInst.properties.feedOutWidth = 5;
         newInst.properties.feedOutSpacing = 5;
+        newInst.properties.feedOutPour = false;
+        newInst.properties.feedOutGap = 5;
 
         if (state.placementMode === 'diff_gnd') {
             newInst.properties.gndRadius = 15;
@@ -319,6 +323,30 @@ export function renderPropertiesPanel() {
             `;
         };
 
+        // Helper for Gap Row
+        const createGapRow = (gapProp, layerProp, rowClass = '') => {
+            const layerName = inst.properties[layerProp];
+            const layer = state.currentStackup.find(l => l.name === layerName);
+            const isRef = layer ? layer.isReference : false;
+            const isEnabled = isRef; // Only enable if reference layer, matching single logic (though visualization allows it if pour is true)
+            // Actually, for visualization we removed isRef check, but for UI enabling, we should probably keep it consistent with "Pour" being auto-set by isRef.
+            // But wait, if we want to allow pour on non-ref layers, we should enable it always?
+            // The user said "on is_ref checked layer". So let's keep it enabled only if isRef for now to avoid confusion, or just enable it always.
+            // Let's stick to isRef for enabling the input to guide the user.
+
+            const gapVal = inst.properties[gapProp] !== undefined ? inst.properties[gapProp] : 5;
+            return `
+                <tr class="${rowClass}">
+                    <td>Gap</td>
+                    <td>
+                        <input type="number" value="${gapVal}" 
+                            ${isEnabled ? '' : 'disabled'}
+                            oninput="window.updateInstanceProp(${inst.id}, '${gapProp}', this.value)" title="Gap">
+                    </td>
+                </tr>
+            `;
+        };
+
         // Pitch
         html += `
             <tr>
@@ -350,6 +378,7 @@ export function renderPropertiesPanel() {
         `;
         html += createLayerRow('feedIn', 'Feed In Layer', 'feed-in-rows');
         html += createWidthSpacingRow('feedInWidth', 'feedInSpacing', 'Feed In', 'feed-in-rows');
+        html += createGapRow('feedInGap', 'feedIn', 'feed-in-rows');
         html += `
             <tr class="feed-in-rows">
                 <td>d1 (Straight)</td>
@@ -379,6 +408,7 @@ export function renderPropertiesPanel() {
         `;
         html += createLayerRow('feedOut', 'Feed Out Layer', 'feed-out-rows');
         html += createWidthSpacingRow('feedOutWidth', 'feedOutSpacing', 'Feed Out', 'feed-out-rows');
+        html += createGapRow('feedOutGap', 'feedOut', 'feed-out-rows');
         html += `
             <tr class="feed-out-rows">
                 <td>d1 (Straight)</td>

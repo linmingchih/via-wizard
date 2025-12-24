@@ -588,6 +588,99 @@ export class PlacementCanvas {
             const lastPt = p[p.length - 1];
             this.drawLabel(lastPt.x, lastPt.y, layerName);
         }
+
+        // --- Pour Outline Visualization ---
+        const pour = isFeedIn ? inst.properties.feedInPour : inst.properties.feedOutPour;
+        const gap = isFeedIn ? inst.properties.feedInGap : inst.properties.feedOutGap;
+
+        // Find layer in stackup to check isReference
+        const layer = state.currentStackup.find(l => l.name === layerName);
+        const isRef = layer ? layer.isReference : false;
+
+        console.log(`Debug Diff Pour: Layer=${layerName}, isRef=${isRef}, Pour=${pour}, Gap=${gap}, Paths=${paths.length}`);
+
+        if (pour && gap !== undefined && gap >= 0 && paths.length === 2) {
+            const pitch = inst.properties.pitch || 0;
+            const pourWidth = pitch + width + 2 * gap;
+            const offset = pourWidth / 2;
+
+            // Calculate Center Path
+            const pathP = paths[0];
+            const pathN = paths[1];
+            const centerPoints = [];
+
+            // Assume paths have same length
+            const len = Math.min(pathP.length, pathN.length);
+            for (let i = 0; i < len; i++) {
+                centerPoints.push({
+                    x: (pathP[i].x + pathN[i].x) / 2,
+                    y: (pathP[i].y + pathN[i].y) / 2
+                });
+            }
+
+            // Generate Outline Paths (Offset from Center)
+            const outline1 = [];
+            const outline2 = [];
+
+            for (let i = 0; i < centerPoints.length; i++) {
+                const pt = centerPoints[i];
+                let dx, dy;
+
+                if (i < centerPoints.length - 1) {
+                    dx = centerPoints[i + 1].x - pt.x;
+                    dy = centerPoints[i + 1].y - pt.y;
+                } else if (i > 0) {
+                    dx = pt.x - centerPoints[i - 1].x;
+                    dy = pt.y - centerPoints[i - 1].y;
+                } else {
+                    dx = 1; dy = 0; // Default
+                }
+
+                const segLen = Math.sqrt(dx * dx + dy * dy);
+                if (segLen > 0) {
+                    const nx = -dy / segLen;
+                    const ny = dx / segLen;
+                    outline1.push({ x: pt.x + nx * offset, y: pt.y + ny * offset });
+                    outline2.push({ x: pt.x - nx * offset, y: pt.y - ny * offset });
+                } else {
+                    outline1.push({ x: pt.x, y: pt.y });
+                    outline2.push({ x: pt.x, y: pt.y });
+                }
+            }
+
+            // Draw Outline
+            this.ctx.save();
+            this.ctx.strokeStyle = '#aaa';
+            this.ctx.lineWidth = 1 / state.canvasState.scale;
+            this.ctx.setLineDash([4 / state.canvasState.scale, 2 / state.canvasState.scale]);
+            this.ctx.beginPath();
+
+            // Draw Line 1
+            if (outline1.length > 0) {
+                this.ctx.moveTo(outline1[0].x, outline1[0].y);
+                for (let i = 1; i < outline1.length; i++) this.ctx.lineTo(outline1[i].x, outline1[i].y);
+            }
+
+            // Draw Line 2
+            if (outline2.length > 0) {
+                this.ctx.moveTo(outline2[0].x, outline2[0].y);
+                for (let i = 1; i < outline2.length; i++) this.ctx.lineTo(outline2[i].x, outline2[i].y);
+            }
+
+            // Connect Ends (Caps)
+            if (outline1.length > 0 && outline2.length > 0) {
+                this.ctx.moveTo(outline1[0].x, outline1[0].y);
+                this.ctx.lineTo(outline2[0].x, outline2[0].y);
+
+                const last1 = outline1[outline1.length - 1];
+                const last2 = outline2[outline2.length - 1];
+                this.ctx.moveTo(last1.x, last1.y);
+                this.ctx.lineTo(last2.x, last2.y);
+            }
+
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
     }
 
     drawLabel(x, y, text) {
