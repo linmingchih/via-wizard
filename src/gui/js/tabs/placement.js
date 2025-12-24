@@ -761,57 +761,88 @@ export function deleteInstance(id) {
 
 function copyInstance(id) {
     const inst = state.placedInstances.find(i => i.id === id);
-    if (inst) {
-        clipboardInstance = JSON.parse(JSON.stringify(inst));
-        // console.log("Copied:", clipboardInstance);
+    if (!inst) return;
+
+    const itemsToCopy = [inst];
+
+    // If it's a differential pair, find connected children
+    if (inst.type === 'differential' || inst.type === 'diff_gnd') {
+        const children = state.placedInstances.filter(i =>
+            (i.type === 'dog_bone' || i.type === 'surround_via_array') &&
+            i.properties.connectedDiffPairId === inst.id
+        );
+        itemsToCopy.push(...children);
     }
+
+    clipboardInstance = JSON.parse(JSON.stringify(itemsToCopy));
 }
 
 function pasteInstance() {
-    if (!clipboardInstance) return;
+    if (!clipboardInstance || clipboardInstance.length === 0) return;
 
-    const newInst = JSON.parse(JSON.stringify(clipboardInstance));
-    newInst.id = Date.now();
+    // Handle legacy clipboard (single object) just in case
+    const items = Array.isArray(clipboardInstance) ? clipboardInstance : [clipboardInstance];
 
-    // Generate unique name
-    // Generate unique name
-    let baseName = newInst.name;
-    let newName;
-
-    // Check if name ends with a number (e.g., "Via_1", "Name123")
-    // Regex matches: (anything)(optional underscore)(number)$
-    const match = baseName.match(/^(.*?)_?(\d+)$/);
-
-    if (match) {
-        // It has a number at the end
-        const prefix = match[1];
-        let num = parseInt(match[2], 10);
-
-        // Try incrementing until unique
-        do {
-            num++;
-            newName = `${prefix}_${num}`;
-        } while (state.placedInstances.some(i => i.name === newName));
-    } else {
-        // No number at end, append _0
-        let num = 0;
-        newName = `${baseName}_${num}`;
-
-        // If that exists, keep incrementing
-        while (state.placedInstances.some(i => i.name === newName)) {
-            num++;
-            newName = `${baseName}_${num}`;
-        }
-    }
-    newInst.name = newName;
-
-    // Offset
+    const idMap = new Map();
+    const newItems = [];
     const offset = state.canvasState.gridSpacing || 10;
-    newInst.x += offset;
-    newInst.y += offset;
 
-    state.placedInstances.push(newInst);
-    selectInstance(newInst.id);
+    // First pass: Create new instances with new IDs and Names
+    items.forEach((item, index) => {
+        const newItem = JSON.parse(JSON.stringify(item));
+        const oldId = newItem.id;
+        // Ensure unique ID by adding index and random component
+        newItem.id = Date.now() + index + Math.floor(Math.random() * 1000);
+        idMap.set(oldId, newItem.id);
+
+        // Name generation logic
+        let baseName = newItem.name;
+        let newName;
+        const match = baseName.match(/^(.*?)_?(\d+)$/);
+
+        const isNameTaken = (name) => {
+            return state.placedInstances.some(i => i.name === name) || newItems.some(i => i.name === name);
+        };
+
+        if (match) {
+            const prefix = match[1];
+            let num = parseInt(match[2], 10);
+            do {
+                num++;
+                newName = `${prefix}_${num}`;
+            } while (isNameTaken(newName));
+        } else {
+            let num = 0;
+            do {
+                newName = `${baseName}_${num}`;
+                num++;
+            } while (isNameTaken(newName));
+        }
+        newItem.name = newName;
+
+        // Apply offset
+        newItem.x += offset;
+        newItem.y += offset;
+
+        newItems.push(newItem);
+    });
+
+    // Second pass: Update references
+    newItems.forEach(newItem => {
+        if (newItem.properties.connectedDiffPairId) {
+            const newParentId = idMap.get(newItem.properties.connectedDiffPairId);
+            if (newParentId) {
+                newItem.properties.connectedDiffPairId = newParentId;
+            }
+        }
+    });
+
+    state.placedInstances.push(...newItems);
+
+    // Select the main instance (the first one)
+    if (newItems.length > 0) {
+        selectInstance(newItems[0].id);
+    }
 }
 
 export function updateGrid() {
