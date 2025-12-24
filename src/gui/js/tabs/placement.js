@@ -287,7 +287,10 @@ export function renderPropertiesPanel() {
         // Helper for Layer Select
         const createLayerRow = (prop, label, rowClass = '') => {
             const val = inst.properties[prop] || "";
-            const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
+            const opts = conductorLayers.map(l => {
+                const colorStyle = l.isReference ? 'style="color: blue;"' : '';
+                return `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${colorStyle}>${l.name}</option>`;
+            }).join('');
             return `
                 <tr class="${rowClass}">
                     <td>${label}</td>
@@ -439,7 +442,10 @@ export function renderPropertiesPanel() {
 
         const createLayerRow = (prop, label) => {
             const val = inst.properties[prop] || "";
-            const opts = conductorLayers.map(l => `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${l.isReference ? 'disabled' : ''}>${l.name}</option>`).join('');
+            const opts = conductorLayers.map(l => {
+                const colorStyle = l.isReference ? 'style="color: blue;"' : '';
+                return `<option value="${l.name}" ${l.name === val ? 'selected' : ''} ${colorStyle}>${l.name}</option>`;
+            }).join('');
             return `
                 <tr>
                     <td>${label}</td>
@@ -464,22 +470,21 @@ export function renderPropertiesPanel() {
         };
 
         const createPourGapRow = (pourProp, gapProp, layerProp) => {
-            const isEnabled = !!inst.properties[layerProp];
-            const pourVal = inst.properties[pourProp] || false;
+            const layerName = inst.properties[layerProp];
+            const layer = state.currentStackup.find(l => l.name === layerName);
+            const isRef = layer ? layer.isReference : false;
+
+            // Gap is enabled if it is a reference layer
+            const isEnabled = isRef;
             const gapVal = inst.properties[gapProp] !== undefined ? inst.properties[gapProp] : 5;
 
             return `
                 <tr>
-                    <td>Pour / Gap</td>
+                    <td>Gap</td>
                     <td style="display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" ${pourVal ? 'checked' : ''} 
-                            ${isEnabled ? '' : 'disabled'}
-                            onchange="window.updateInstanceProp(${inst.id}, '${pourProp}', this.checked)" title="Pour">
-                        <label>Pour</label>
-                        <input type="number" value="${gapVal}" style="width: 50px; margin-left: 10px;"
+                        <input type="number" value="${gapVal}" style="width: 100%;"
                             ${isEnabled ? '' : 'disabled'}
                             oninput="window.updateInstanceProp(${inst.id}, '${gapProp}', this.value)" title="Gap (mil)">
-                        <label>Gap</label>
                     </td>
                 </tr>
             `;
@@ -694,6 +699,15 @@ export function updateInstanceProp(id, key, value) {
     else if (key === 'orientation') {
         inst.properties[key] = value;
         inst.properties.arrowDirection = (value === 'vertical') ? 1 : 0;
+    }
+    // Feed In/Out Layer Change
+    else if (key === 'feedIn' || key === 'feedOut') {
+        inst.properties[key] = value;
+        // Check if new layer is reference
+        const layer = state.currentStackup.find(l => l.name === value);
+        const isRef = layer ? layer.isReference : false;
+        // Set pour property based on isRef
+        inst.properties[key + 'Pour'] = isRef;
     }
     // Fallback for any other property
     else {
