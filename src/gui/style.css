@@ -323,6 +323,45 @@ button:hover {
     gap: 15px;
 }
 
+.placement-right {
+    flex: 0 0 350px;
+    background: var(--bg-color-light);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.placed-instances-section {
+    flex: 1 1 50%;
+    /* Initial share */
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.instance-properties-section {
+    flex: 1 1 50%;
+    /* Initial share */
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.horizontal-splitter {
+    height: 6px;
+    background: var(--border-color);
+    cursor: ns-resize;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.horizontal-splitter:hover {
+    background: var(--primary-color);
+}
+
 .padstack-sidebar {
     width: 270px;
     background-color: var(--panel-bg);
@@ -554,6 +593,22 @@ legend {
 .indent-group.disabled {
     opacity: 0.5;
     pointer-events: none;
+}
+
+#placed-list,
+#prop-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.placed-instances-section h3,
+.instance-properties-section h3 {
+    padding: 10px;
+    margin: 0;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-color);
+    flex-shrink: 0;
 }
 
 .indent-item {

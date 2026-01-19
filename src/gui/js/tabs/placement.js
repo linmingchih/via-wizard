@@ -40,6 +40,7 @@ export function renderPlacementTab() {
     }
 
     renderPlacedList();
+    initSplitter();
 
     // Attach event listeners for board size inputs
     const wInput = document.getElementById('canvas-width');
@@ -1101,4 +1102,55 @@ function syncConnectedRecursive(parentId) {
             syncConnectedRecursive(other.id);
         }
     });
+}
+
+function initSplitter() {
+    const splitter = document.getElementById('placement-splitter');
+    const upper = document.querySelector('.placed-instances-section');
+    const lower = document.querySelector('.instance-properties-section');
+    const container = document.querySelector('.placement-right');
+
+    if (!splitter || !upper || !lower || !container) return;
+
+    let isResizing = false;
+
+    splitter.onmousedown = (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'ns-resize';
+
+        // Add overlay to prevent interference
+        const overlay = document.createElement('div');
+        overlay.id = 'resize-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.zIndex = '9999';
+        overlay.style.cursor = 'ns-resize';
+        document.body.appendChild(overlay);
+
+        const containerRect = container.getBoundingClientRect();
+
+        const onMouseMove = (moveEvent) => {
+            if (!isResizing) return;
+            const newUpperHeight = Math.max(100, Math.min(moveEvent.clientY - containerRect.top, containerRect.height - 100));
+            const upperPercent = (newUpperHeight / containerRect.height) * 100;
+
+            upper.style.flex = `0 0 ${upperPercent}%`;
+            lower.style.flex = `1 1 auto`;
+        };
+
+        const onMouseUp = () => {
+            isResizing = false;
+            document.body.style.cursor = '';
+            const existingOverlay = document.getElementById('resize-overlay');
+            if (existingOverlay) existingOverlay.remove();
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
 }
