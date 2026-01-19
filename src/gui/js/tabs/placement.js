@@ -257,6 +257,14 @@ export function renderPropertiesPanel() {
     const panel = document.getElementById('prop-panel-content');
     if (!panel) return;
 
+    // --- Focus Persistence Start ---
+    const activeId = document.activeElement ? document.activeElement.id : null;
+    let cursorStart = null, cursorEnd = null;
+    if (document.activeElement instanceof HTMLInputElement) {
+        cursorStart = document.activeElement.selectionStart;
+        cursorEnd = document.activeElement.selectionEnd;
+    }
+
     if (!state.selectedInstanceId) {
         panel.innerHTML = '<p class="hint">Select an instance to view properties.</p>';
         return;
@@ -271,7 +279,7 @@ export function renderPropertiesPanel() {
     html += `
         <tr>
             <td>Name</td>
-            <td><input type="text" value="${inst.name || ''}" onchange="window.updateInstanceProp(${inst.id}, 'name', this.value)"></td>
+            <td><input id="prop-name-${inst.id}" type="text" value="${inst.name || ''}" onchange="window.updateInstanceProp(${inst.id}, 'name', this.value)"></td>
         </tr>
     `;
 
@@ -283,8 +291,8 @@ export function renderPropertiesPanel() {
             <tr>
                 <td>Position (X, Y)</td>
                 <td style="display: flex; gap: 5px;">
-                    <input type="number" value="${inst.x}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
-                    <input type="number" value="${inst.y}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
+                    <input id="prop-x-${inst.id}" type="number" value="${inst.x}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
+                    <input id="prop-y-${inst.id}" type="number" value="${inst.y}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
                 </td>
             </tr>
         `;
@@ -304,7 +312,7 @@ export function renderPropertiesPanel() {
                 <tr class="${rowClass}">
                     <td>${label}</td>
                     <td>
-                        <select onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
+                        <select id="prop-${prop}-${inst.id}" onchange="window.updateInstanceProp(${inst.id}, '${prop}', this.value)">
                             <option value="">-- Select --</option>
                             ${opts}
                         </select>
@@ -321,8 +329,8 @@ export function renderPropertiesPanel() {
                 <tr class="${rowClass}">
                     <td>${labelPrefix} W/S</td>
                     <td style="display: flex; gap: 5px;">
-                        <input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)" title="Width">
-                        <input type="number" value="${spacingVal}" oninput="window.updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" title="Spacing">
+                        <input id="prop-${widthProp}-${inst.id}" type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)" title="Width">
+                        <input id="prop-${spacingProp}-${inst.id}" type="number" value="${spacingVal}" oninput="window.updateInstanceProp(${inst.id}, '${spacingProp}', this.value)" title="Spacing">
                     </td>
                 </tr>
             `;
@@ -344,7 +352,7 @@ export function renderPropertiesPanel() {
                 <tr class="${rowClass}">
                     <td>Gap</td>
                     <td>
-                        <input type="number" value="${gapVal}" 
+                        <input id="prop-${gapProp}-${inst.id}" type="number" value="${gapVal}" 
                             ${isEnabled ? '' : 'disabled'}
                             oninput="window.updateInstanceProp(${inst.id}, '${gapProp}', this.value)" title="Gap">
                     </td>
@@ -358,7 +366,7 @@ export function renderPropertiesPanel() {
         html += `
             <tr>
                 <td>Pitch</td>
-                <td><input type="number" value="${inst.properties.pitch}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'pitch', this.value)"></td>
+                <td><input id="prop-pitch-${inst.id}" type="number" value="${inst.properties.pitch}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'pitch', this.value)"></td>
             </tr>
         `;
 
@@ -367,7 +375,7 @@ export function renderPropertiesPanel() {
             <tr>
                 <td>Orientation</td>
                 <td>
-                    <select ${isLocked ? 'disabled style="opacity:0.6"' : ''} onchange="window.updateInstanceProp(${inst.id}, 'orientation', this.value)">
+                    <select id="prop-orientation-${inst.id}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} onchange="window.updateInstanceProp(${inst.id}, 'orientation', this.value)">
                         <option value="horizontal" ${inst.properties.orientation === 'horizontal' ? 'selected' : ''}>Horizontal</option>
                         <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
                     </select>
@@ -385,7 +393,7 @@ export function renderPropertiesPanel() {
             <tr>
                 <td>Connect to</td>
                 <td>
-                    <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
+                    <select id="prop-connectedDiffPairId-${inst.id}" onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
                         <option value="">-- Independent --</option>
                         ${parentOpts}
                     </select>
@@ -407,19 +415,19 @@ export function renderPropertiesPanel() {
         html += `
             <tr class="feed-in-rows">
                 <td>d1 (Straight)</td>
-                <td><input type="number" value="${inst.properties.feedInD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD1', this.value)"></td>
+                <td><input id="prop-feedInD1-${inst.id}" type="number" value="${inst.properties.feedInD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD1', this.value)"></td>
             </tr>
             <tr class="feed-in-rows">
                 <td>Turn Deg</td>
-                <td><input type="number" value="${inst.properties.feedInAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInAlpha', this.value)"></td>
+                <td><input id="prop-feedInAlpha-${inst.id}" type="number" value="${inst.properties.feedInAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInAlpha', this.value)"></td>
             </tr>
             <tr class="feed-in-rows">
                 <td>Radius (R)</td>
-                <td><input type="number" value="${inst.properties.feedInR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInR', this.value)"></td>
+                <td><input id="prop-feedInR-${inst.id}" type="number" value="${inst.properties.feedInR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedInR', this.value)"></td>
             </tr>
             <tr class="feed-in-rows">
                 <td>d2 (End Len)</td>
-                <td><input type="number" placeholder="Auto" value="${inst.properties.feedInD2 !== undefined ? inst.properties.feedInD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD2', this.value)"></td>
+                <td><input id="prop-feedInD2-${inst.id}" type="number" placeholder="Auto" value="${inst.properties.feedInD2 !== undefined ? inst.properties.feedInD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedInD2', this.value)"></td>
             </tr>
         `;
 
@@ -437,19 +445,19 @@ export function renderPropertiesPanel() {
         html += `
             <tr class="feed-out-rows">
                 <td>d1 (Straight)</td>
-                <td><input type="number" value="${inst.properties.feedOutD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD1', this.value)"></td>
+                <td><input id="prop-feedOutD1-${inst.id}" type="number" value="${inst.properties.feedOutD1 || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD1', this.value)"></td>
             </tr>
             <tr class="feed-out-rows">
                 <td>Turn Deg</td>
-                <td><input type="number" value="${inst.properties.feedOutAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutAlpha', this.value)"></td>
+                <td><input id="prop-feedOutAlpha-${inst.id}" type="number" value="${inst.properties.feedOutAlpha || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutAlpha', this.value)"></td>
             </tr>
             <tr class="feed-out-rows">
                 <td>Radius (R)</td>
-                <td><input type="number" value="${inst.properties.feedOutR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutR', this.value)"></td>
+                <td><input id="prop-feedOutR-${inst.id}" type="number" value="${inst.properties.feedOutR || 0}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutR', this.value)"></td>
             </tr>
             <tr class="feed-out-rows">
                 <td>d2 (End Len)</td>
-                <td><input type="number" placeholder="Auto" value="${inst.properties.feedOutD2 !== undefined ? inst.properties.feedOutD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD2', this.value)"></td>
+                <td><input id="prop-feedOutD2-${inst.id}" type="number" placeholder="Auto" value="${inst.properties.feedOutD2 !== undefined ? inst.properties.feedOutD2 : ''}" oninput="window.updateInstanceProp(${inst.id}, 'feedOutD2', this.value)"></td>
             </tr>
         `;
 
@@ -463,15 +471,15 @@ export function renderPropertiesPanel() {
                 </tr>
                 <tr class="gnd-rows">
                     <td>GND Radius</td>
-                    <td><input type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
+                    <td><input id="prop-gndRadius-${inst.id}" type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
                 </tr>
                 <tr class="gnd-rows">
                     <td>GND Count</td>
-                    <td><input type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
+                    <td><input id="prop-gndCount-${inst.id}" type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
                 </tr>
                 <tr class="gnd-rows">
                     <td>Angle Step (deg)</td>
-                    <td><input type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
+                    <td><input id="prop-gndAngleStep-${inst.id}" type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
                 </tr>
             `;
 
@@ -484,7 +492,7 @@ export function renderPropertiesPanel() {
                 <tr class="gnd-rows">
                     <td>GND Padstack</td>
                     <td>
-                        <select onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
+                        <select id="prop-gndPadstackIndex-${inst.id}" onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
                             ${padstackOpts}
                         </select>
                     </td>
@@ -519,7 +527,7 @@ export function renderPropertiesPanel() {
             return `
                 <tr>
                     <td>${label}</td>
-                    <td><input type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)"></td>
+                    <td><input id="prop-${widthProp}-${inst.id}" type="number" value="${widthVal}" oninput="window.updateInstanceProp(${inst.id}, '${widthProp}', this.value)"></td>
                 </tr>
              `;
         };
@@ -537,7 +545,7 @@ export function renderPropertiesPanel() {
                 <tr>
                     <td>Gap</td>
                     <td style="display: flex; align-items: center; gap: 5px;">
-                        <input type="number" value="${gapVal}" style="width: 100%;"
+                        <input id="prop-${gapProp}-${inst.id}" type="number" value="${gapVal}" style="width: 100%;"
                             ${isEnabled ? '' : 'disabled'}
                             oninput="window.updateInstanceProp(${inst.id}, '${gapProp}', this.value)" title="Gap (mil)">
                     </td>
@@ -563,7 +571,7 @@ export function renderPropertiesPanel() {
             <tr>
                 <td>Connect to</td>
                 <td>
-                    <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
+                    <select id="prop-connectedDiffPairId-${inst.id}" onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
                         <option value="">-- Independent --</option>
                         ${parentOpts}
                     </select>
@@ -576,8 +584,8 @@ export function renderPropertiesPanel() {
                 <tr>
                     <td>Relative Pos (X, Y)</td>
                     <td style="display: flex; gap: 5px;">
-                        <input type="number" value="${inst.properties.relX !== undefined ? inst.properties.relX : 5}" oninput="window.updateInstanceProp(${inst.id}, 'relX', this.value)" title="Relative X">
-                        <input type="number" value="${inst.properties.relY !== undefined ? inst.properties.relY : 5}" oninput="window.updateInstanceProp(${inst.id}, 'relY', this.value)" title="Relative Y">
+                        <input id="prop-relX-${inst.id}" type="number" value="${inst.properties.relX !== undefined ? inst.properties.relX : 5}" oninput="window.updateInstanceProp(${inst.id}, 'relX', this.value)" title="Relative X">
+                        <input id="prop-relY-${inst.id}" type="number" value="${inst.properties.relY !== undefined ? inst.properties.relY : 5}" oninput="window.updateInstanceProp(${inst.id}, 'relY', this.value)" title="Relative Y">
                     </td>
                 </tr>
             `;
@@ -601,11 +609,11 @@ export function renderPropertiesPanel() {
             </tr>
             <tr>
                 <td>Line Width</td>
-                <td><input type="number" value="${inst.properties.lineWidth}" oninput="window.updateInstanceProp(${inst.id}, 'lineWidth', this.value)"></td>
+                <td><input id="prop-lineWidth-${inst.id}" type="number" value="${inst.properties.lineWidth}" oninput="window.updateInstanceProp(${inst.id}, 'lineWidth', this.value)"></td>
             </tr>
             <tr>
                 <td>Length</td>
-                <td><input type="number" value="${inst.properties.length}" oninput="window.updateInstanceProp(${inst.id}, 'length', this.value)"></td>
+                <td><input id="prop-length-${inst.id}" type="number" value="${inst.properties.length}" oninput="window.updateInstanceProp(${inst.id}, 'length', this.value)"></td>
             </tr>
 
         `;
@@ -619,18 +627,18 @@ export function renderPropertiesPanel() {
             html += `
                 <tr>
                     <td>Angle</td>
-                    <td><input type="number" value="${inst.properties.angle !== undefined ? inst.properties.angle : 45}" oninput="window.updateInstanceProp(${inst.id}, 'angle', this.value)"></td>
+                    <td><input id="prop-angle-${inst.id}" type="number" value="${inst.properties.angle !== undefined ? inst.properties.angle : 45}" oninput="window.updateInstanceProp(${inst.id}, 'angle', this.value)"></td>
                 </tr>
             `;
         } else {
             html += `
                 <tr>
                     <td>Pos Angle</td>
-                    <td><input type="number" value="${inst.properties.posAngle}" oninput="window.updateInstanceProp(${inst.id}, 'posAngle', this.value)"></td>
+                    <td><input id="prop-posAngle-${inst.id}" type="number" value="${inst.properties.posAngle}" oninput="window.updateInstanceProp(${inst.id}, 'posAngle', this.value)"></td>
                 </tr>
                 <tr>
                     <td>Neg Angle</td>
-                    <td><input type="number" value="${inst.properties.negAngle}" oninput="window.updateInstanceProp(${inst.id}, 'negAngle', this.value)"></td>
+                    <td><input id="prop-negAngle-${inst.id}" type="number" value="${inst.properties.negAngle}" oninput="window.updateInstanceProp(${inst.id}, 'negAngle', this.value)"></td>
                 </tr>
             `;
         }
@@ -638,11 +646,11 @@ export function renderPropertiesPanel() {
         html += `
             <tr>
                 <td>Diameter</td>
-                <td><input type="number" value="${inst.properties.diameter}" oninput="window.updateInstanceProp(${inst.id}, 'diameter', this.value)"></td>
+                <td><input id="prop-diameter-${inst.id}" type="number" value="${inst.properties.diameter}" oninput="window.updateInstanceProp(${inst.id}, 'diameter', this.value)"></td>
             </tr>
              <tr>
                 <td>Void(mil)</td>
-                <td><input type="number" min="0" value="${inst.properties.void}" oninput="window.updateInstanceProp(${inst.id}, 'void', this.value)"></td>
+                <td><input id="prop-void-${inst.id}" type="number" min="0" value="${inst.properties.void}" oninput="window.updateInstanceProp(${inst.id}, 'void', this.value)"></td>
             </tr>
         `;
     } else if (inst.type === 'surround_via_array') {
@@ -663,15 +671,15 @@ export function renderPropertiesPanel() {
             </tr>
             <tr>
                 <td>Radius</td>
-                <td><input type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
+                <td><input id="prop-gndRadius-${inst.id}" type="number" value="${inst.properties.gndRadius}" oninput="window.updateInstanceProp(${inst.id}, 'gndRadius', this.value)"></td>
             </tr>
             <tr>
                 <td>Count</td>
-                <td><input type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
+                <td><input id="prop-gndCount-${inst.id}" type="number" value="${inst.properties.gndCount}" step="1" oninput="window.updateInstanceProp(${inst.id}, 'gndCount', this.value)"></td>
             </tr>
             <tr>
                 <td>Angle Step</td>
-                <td><input type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
+                <td><input id="prop-gndAngleStep-${inst.id}" type="number" value="${inst.properties.gndAngleStep}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngleStep', this.value)"></td>
             </tr>
         `;
 
@@ -680,14 +688,14 @@ export function renderPropertiesPanel() {
         ).join('');
 
         html += `
-            <tr>
-                <td>Padstack</td>
-                <td>
-                    <select onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
-                        ${padstackOpts}
-                    </select>
-                </td>
-            </tr>
+                <tr class="gnd-rows">
+                    <td>Padstack</td>
+                    <td>
+                        <select id="prop-gndPadstackIndex-${inst.id}" onchange="window.updateInstanceProp(${inst.id}, 'gndPadstackIndex', this.value)">
+                            ${padstackOpts}
+                        </select>
+                    </td>
+                </tr>
         `;
     }
 
@@ -700,6 +708,17 @@ export function renderPropertiesPanel() {
     `;
 
     panel.innerHTML = html;
+
+    // --- Focus Persistence End ---
+    if (activeId) {
+        const el = document.getElementById(activeId);
+        if (el) {
+            el.focus();
+            if (cursorStart !== null && el.setSelectionRange) {
+                try { el.setSelectionRange(cursorStart, cursorEnd); } catch (e) { }
+            }
+        }
+    }
 }
 export function updateInstanceProp(id, key, value) {
     const inst = state.placedInstances.find(i => i.id === id);
@@ -835,40 +854,43 @@ export function deleteInstance(id) {
     renderPropertiesPanel();
 }
 
+function getAllDescendants(parentId) {
+    let descendants = [];
+    const children = state.placedInstances.filter(i => i.properties.connectedDiffPairId === parentId);
+    children.forEach(child => {
+        descendants.push(child);
+        descendants = descendants.concat(getAllDescendants(child.id));
+    });
+    return descendants;
+}
+
 function copyInstance(id) {
     const inst = state.placedInstances.find(i => i.id === id);
     if (!inst) return;
 
-    const itemsToCopy = [inst];
-
-    // If it's a differential pair or single via, find connected children
-    if (['differential', 'diff_gnd', 'single'].includes(inst.type)) {
-        const children = state.placedInstances.filter(i =>
-            (i.type === 'dog_bone' || i.type === 'surround_via_array' || i.type === 'gnd') &&
-            i.properties.connectedDiffPairId === inst.id
-        );
-        itemsToCopy.push(...children);
-    }
+    // Recursive search for ALL connected descendants
+    const itemsToCopy = [inst, ...getAllDescendants(inst.id)];
 
     clipboardInstance = JSON.parse(JSON.stringify(itemsToCopy));
+    addMessage(`Copied ${itemsToCopy.length} items to clipboard.`, 'info');
 }
 
 function pasteInstance() {
     if (!clipboardInstance || clipboardInstance.length === 0) return;
 
-    // Handle legacy clipboard (single object) just in case
     const items = Array.isArray(clipboardInstance) ? clipboardInstance : [clipboardInstance];
-
     const idMap = new Map();
     const newItems = [];
     const offset = state.canvasState.gridSpacing || 10;
+    const now = Date.now();
 
-    // First pass: Create new instances with new IDs and Names
+    // First pass: Create new instances with new IDs and unique names
     items.forEach((item, index) => {
         const newItem = JSON.parse(JSON.stringify(item));
         const oldId = newItem.id;
-        // Ensure unique ID by adding index and random component
-        newItem.id = Date.now() + index + Math.floor(Math.random() * 1000);
+
+        // Ensure strictly unique ID
+        newItem.id = now + index + Math.floor(Math.random() * 10000);
         idMap.set(oldId, newItem.id);
 
         // Name generation logic
@@ -888,7 +910,7 @@ function pasteInstance() {
                 newName = `${prefix}_${num}`;
             } while (isNameTaken(newName));
         } else {
-            let num = 0;
+            let num = 1;
             do {
                 newName = `${baseName}_${num}`;
                 num++;
@@ -896,29 +918,38 @@ function pasteInstance() {
         }
         newItem.name = newName;
 
-        // Apply offset
+        // Apply spatial offset
         newItem.x += offset;
         newItem.y += offset;
 
         newItems.push(newItem);
     });
 
-    // Second pass: Update references
+    // Second pass: Re-map internal connection references within the copied group
     newItems.forEach(newItem => {
         if (newItem.properties.connectedDiffPairId) {
             const newParentId = idMap.get(newItem.properties.connectedDiffPairId);
             if (newParentId) {
                 newItem.properties.connectedDiffPairId = newParentId;
+            } else {
+                // If the parent wasn't part of the copied group, break the connection 
+                // to avoid pointing to a random instance in the original group
+                newItem.properties.connectedDiffPairId = null;
             }
         }
     });
 
     state.placedInstances.push(...newItems);
 
-    // Select the main instance (the first one)
+    if (canvasInstance) canvasInstance.draw();
+    renderPlacedList();
+
+    // Select the "root" of the pasted group (usually the first selected item)
     if (newItems.length > 0) {
         selectInstance(newItems[0].id);
     }
+
+    addMessage(`Pasted ${newItems.length} items.`, 'success');
 }
 
 export function updateGrid() {
