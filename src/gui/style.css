@@ -555,3 +555,53 @@ legend {
     opacity: 0.5;
     pointer-events: none;
 }
+
+/* Canvas Submenu (Glassmorphism) */
+.canvas-submenu {
+    position: fixed;
+    background: rgba(45, 45, 45, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border-radius: 4px;
+    z-index: 2000;
+    min-width: 140px;
+    padding: 5px 0;
+    color: #fff;
+    font-size: 13px;
+    pointer-events: auto;
+}
+
+.submenu-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 4px;
+}
+
+.submenu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.submenu-item:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+}
+
+.submenu-item.active {
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.submenu-item.active:hover {
+    color: #fff;
+}

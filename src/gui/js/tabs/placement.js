@@ -27,7 +27,8 @@ export function renderPlacementTab() {
                 onUpdate: () => {
                     renderPlacedList();
                     renderPropertiesPanel();
-                }
+                },
+                onUpdateProp: (id, key, val) => updateInstanceProp(id, key, val)
             });
             // Expose draw method for other modules (like padstack updates)
             window.drawPlacementCanvas = () => canvasInstance.draw();
@@ -274,16 +275,16 @@ export function renderPropertiesPanel() {
         </tr>
     `;
 
-    // Position (X, Y) - Only show if NOT a connected GND via
     const isConnectedGnd = (inst.type === 'gnd' && inst.properties.connectedDiffPairId);
+    const isLocked = !!inst.properties.connectedDiffPairId && (inst.type === 'differential' || inst.type === 'diff_gnd');
 
     if (!isConnectedGnd) {
         html += `
             <tr>
                 <td>Position (X, Y)</td>
                 <td style="display: flex; gap: 5px;">
-                    <input type="number" value="${inst.x}" oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
-                    <input type="number" value="${inst.y}" oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
+                    <input type="number" value="${inst.x}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'x', this.value)" title="X Coordinate">
+                    <input type="number" value="${inst.y}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'y', this.value)" title="Y Coordinate">
                 </td>
             </tr>
         `;
@@ -351,11 +352,13 @@ export function renderPropertiesPanel() {
             `;
         };
 
+        const isLocked = !!inst.properties.connectedDiffPairId && (inst.type === 'differential' || inst.type === 'diff_gnd');
+
         // Pitch
         html += `
             <tr>
                 <td>Pitch</td>
-                <td><input type="number" value="${inst.properties.pitch}" oninput="window.updateInstanceProp(${inst.id}, 'pitch', this.value)"></td>
+                <td><input type="number" value="${inst.properties.pitch}" ${isLocked ? 'disabled style="opacity:0.6"' : ''} oninput="window.updateInstanceProp(${inst.id}, 'pitch', this.value)"></td>
             </tr>
         `;
 
@@ -364,9 +367,27 @@ export function renderPropertiesPanel() {
             <tr>
                 <td>Orientation</td>
                 <td>
-                    <select onchange="window.updateInstanceProp(${inst.id}, 'orientation', this.value)">
+                    <select ${isLocked ? 'disabled style="opacity:0.6"' : ''} onchange="window.updateInstanceProp(${inst.id}, 'orientation', this.value)">
                         <option value="horizontal" ${inst.properties.orientation === 'horizontal' ? 'selected' : ''}>Horizontal</option>
                         <option value="vertical" ${inst.properties.orientation === 'vertical' ? 'selected' : ''}>Vertical</option>
+                    </select>
+                </td>
+            </tr>
+        `;
+
+        // Connect to (Submenu alternative in Prop Panel)
+        const potentialParents = state.placedInstances.filter(i =>
+            i.id !== inst.id && (i.type === 'differential' || i.type === 'diff_gnd')
+        );
+        const parentOpts = potentialParents.map(p => `<option value="${p.id}" ${p.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+        html += `
+            <tr>
+                <td>Connect to</td>
+                <td>
+                    <select onchange="window.updateInstanceProp(${inst.id}, 'connectedDiffPairId', this.value)">
+                        <option value="">-- Independent --</option>
+                        ${parentOpts}
                     </select>
                 </td>
             </tr>
@@ -699,10 +720,6 @@ export function updateInstanceProp(id, key, value) {
         }
         inst.name = newName;
     }
-    // Position updates
-    else if (key === 'x' || key === 'y') {
-        inst[key] = parseFloat(value);
-    }
     // Boolean pour properties
     else if (key === 'feedInPour' || key === 'feedOutPour') {
         inst.properties[key] = !!value;
@@ -718,7 +735,7 @@ export function updateInstanceProp(id, key, value) {
         }
     }
     // Numeric properties (including widths, spacings, etc.)
-    else if (['pitch', 'width', 'spacing', 'feedInWidth', 'feedOutWidth', 'feedInSpacing', 'feedOutSpacing', 'gndRadius', 'feedInD1', 'feedInR', 'feedOutD1', 'feedOutR', 'lineWidth', 'length', 'posAngle', 'negAngle', 'diameter', 'angle', 'feedInAlpha', 'feedOutAlpha', 'gndCount', 'gndAngleStep'].includes(key)) {
+    else if (['width', 'spacing', 'feedInWidth', 'feedOutWidth', 'feedInSpacing', 'feedOutSpacing', 'gndRadius', 'feedInD1', 'feedInR', 'feedOutD1', 'feedOutR', 'lineWidth', 'length', 'posAngle', 'negAngle', 'diameter', 'angle', 'feedInAlpha', 'feedOutAlpha', 'gndCount', 'gndAngleStep'].includes(key)) {
         const val = parseFloat(value);
         if (!isNaN(val)) {
             inst.properties[key] = val;
@@ -747,8 +764,13 @@ export function updateInstanceProp(id, key, value) {
     }
     // Connected diff pair reference
     else if (key === 'connectedDiffPairId') {
-        inst.properties[key] = value ? parseInt(value) : null;
-        if (inst.type === 'gnd' && inst.properties[key]) {
+        const idVal = value ? parseInt(value) : null;
+        inst.properties[key] = idVal;
+        if (idVal && (inst.type === 'differential' || inst.type === 'diff_gnd')) {
+            syncConnectedProperties(inst, idVal);
+            syncConnectedRecursive(inst.id);
+        }
+        if (inst.type === 'gnd' && idVal) {
             // Initialize relative position if not present
             if (inst.properties.relX === undefined) inst.properties.relX = 5;
             if (inst.properties.relY === undefined) inst.properties.relY = 5;
@@ -772,6 +794,17 @@ export function updateInstanceProp(id, key, value) {
     else if (key === 'orientation') {
         inst.properties[key] = value;
         inst.properties.arrowDirection = (value === 'vertical') ? 1 : 0;
+        syncConnectedRecursive(inst.id);
+    }
+    // Handle X or Y change (for parent sync)
+    else if (key === 'x' || key === 'y') {
+        inst[key] = parseFloat(value);
+        syncConnectedRecursive(inst.id);
+    }
+    // Pitch sync
+    else if (key === 'pitch') {
+        inst.properties[key] = parseFloat(value);
+        syncConnectedRecursive(inst.id);
     }
     // Feed In/Out Layer Change
     else if (key === 'feedIn' || key === 'feedOut') {
@@ -789,7 +822,7 @@ export function updateInstanceProp(id, key, value) {
 
     if (canvasInstance) canvasInstance.draw();
     renderPlacedList();
-    if (key === 'feedIn' || key === 'feedOut' || key === 'connectedDiffPairId') {
+    if (key === 'feedIn' || key === 'feedOut' || key === 'connectedDiffPairId' || key === 'pitch' || key === 'orientation' || key === 'x' || key === 'y') {
         renderPropertiesPanel();
     }
 }
@@ -971,3 +1004,23 @@ window.togglePropSection = function (className, header) {
     const icon = header.querySelector('.toggle-icon');
     if (icon) icon.textContent = isHidden ? '▼' : '▶';
 };
+
+function syncConnectedProperties(childInst, parentId) {
+    const parent = state.placedInstances.find(i => i.id === parentId);
+    if (!parent || (parent.type !== 'differential' && parent.type !== 'diff_gnd')) return;
+
+    childInst.x = parent.x;
+    childInst.y = parent.y;
+    childInst.properties.pitch = parent.properties.pitch;
+    childInst.properties.orientation = parent.properties.orientation;
+    childInst.properties.arrowDirection = parent.properties.arrowDirection;
+}
+
+function syncConnectedRecursive(parentId) {
+    state.placedInstances.forEach(other => {
+        if (other.properties.connectedDiffPairId === parentId && (other.type === 'differential' || other.type === 'diff_gnd')) {
+            syncConnectedProperties(other, parentId);
+            syncConnectedRecursive(other.id);
+        }
+    });
+}

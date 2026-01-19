@@ -7,9 +7,11 @@ export class PlacementCanvas {
         this.canvas = document.getElementById(canvasId);
         this.wrapper = document.getElementById(wrapperId);
         this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
-        this.callbacks = callbacks || {}; // onSelect, onPlace, onUpdate
+        this.callbacks = callbacks || {}; // onSelect, onPlace, onUpdate, onUpdateProp
 
         this.hoveredInstanceId = null;
+        this.submenuEl = null;
+        this.submenuActiveId = null;
 
         if (this.canvas && this.wrapper) {
             this.init();
@@ -802,6 +804,9 @@ export class PlacementCanvas {
             state.canvasState.measureEnd = snap;
             this.draw();
         }
+
+        // Hide submenu on any interaction
+        this.hideSubmenu();
     }
 
     handleMouseMove(e) {
@@ -837,8 +842,24 @@ export class PlacementCanvas {
                             inst.y = newY;
                         }
                     } else {
+                        const oldX = inst.x;
+                        const oldY = inst.y;
                         inst.x = newX;
                         inst.y = newY;
+
+                        // Support "Move Together" for connected differential pairs
+                        if (newX !== oldX || newY !== oldY) {
+                            const syncRecursive = (parentId, x, y) => {
+                                state.placedInstances.forEach(other => {
+                                    if (other.properties.connectedDiffPairId === parentId && (other.type === 'differential' || other.type === 'diff_gnd')) {
+                                        other.x = x;
+                                        other.y = y;
+                                        syncRecursive(other.id, x, y);
+                                    }
+                                });
+                            };
+                            syncRecursive(inst.id, newX, newY);
+                        }
                     }
 
                     this.draw();
@@ -855,6 +876,18 @@ export class PlacementCanvas {
             if (this.hoveredInstanceId !== hoveredId) {
                 this.hoveredInstanceId = hoveredId;
                 this.draw();
+
+                // Trigger Submenu
+                if (hoveredId) {
+                    const inst = state.placedInstances.find(i => i.id === hoveredId);
+                    if (inst && (inst.type === 'differential' || inst.type === 'diff_gnd')) {
+                        this.showSubmenu(inst, e.clientX, e.clientY);
+                    } else {
+                        this.hideSubmenu();
+                    }
+                } else {
+                    this.hideSubmenu();
+                }
             }
 
             this.canvas.style.cursor = hoveredId ? 'grab' : 'crosshair';
@@ -1318,5 +1351,74 @@ export class PlacementCanvas {
             }
         }
         return centers;
+    }
+
+    showSubmenu(inst, mouseX, mouseY) {
+        if (this.submenuActiveId === inst.id) return;
+        this.hideSubmenu();
+
+        this.submenuActiveId = inst.id;
+        this.submenuEl = document.createElement('div');
+        this.submenuEl.className = 'canvas-submenu';
+        this.submenuEl.style.left = (mouseX + 10) + 'px';
+        this.submenuEl.style.top = (mouseY + 10) + 'px';
+
+        const header = document.createElement('div');
+        header.className = 'submenu-header';
+        header.textContent = `Connect ${inst.name} to:`;
+        this.submenuEl.appendChild(header);
+
+        // Filter other differential pairs
+        const targets = state.placedInstances.filter(i =>
+            i.id !== inst.id && (i.type === 'differential' || i.type === 'diff_gnd')
+        );
+
+        if (targets.length === 0) {
+            const item = document.createElement('div');
+            item.className = 'submenu-item';
+            item.style.color = '#666';
+            item.style.fontStyle = 'italic';
+            item.textContent = 'No available targets';
+            this.submenuEl.appendChild(item);
+        } else {
+            // Independent Option
+            const noneItem = document.createElement('div');
+            noneItem.className = 'submenu-item' + (!inst.properties.connectedDiffPairId ? ' active' : '');
+            noneItem.textContent = '-- Independent --';
+            noneItem.onclick = () => {
+                if (this.callbacks.onUpdateProp) {
+                    this.callbacks.onUpdateProp(inst.id, 'connectedDiffPairId', null);
+                }
+                this.hideSubmenu();
+            };
+            this.submenuEl.appendChild(noneItem);
+
+            targets.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'submenu-item' + (inst.properties.connectedDiffPairId === t.id ? ' active' : '');
+                item.textContent = t.name;
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    if (this.callbacks.onUpdateProp) {
+                        this.callbacks.onUpdateProp(inst.id, 'connectedDiffPairId', t.id);
+                    }
+                    this.hideSubmenu();
+                };
+                this.submenuEl.appendChild(item);
+            });
+        }
+
+        document.body.appendChild(this.submenuEl);
+
+        // Close on mouse leave the submenu itself
+        this.submenuEl.onmouseleave = () => this.hideSubmenu();
+    }
+
+    hideSubmenu() {
+        if (this.submenuEl) {
+            document.body.removeChild(this.submenuEl);
+            this.submenuEl = null;
+        }
+        this.submenuActiveId = null;
     }
 }

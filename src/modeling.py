@@ -51,7 +51,10 @@ class PadstackConfig:
 # --- 2. ViaInstance Class ---
 class ViaInstance:
     """Represents a placed Via instance from the JSON data."""
-    def __init__(self, data_dict: dict, padstack_config: PadstackConfig, units: str, to_mil_func):
+    def __init__(self, data_dict: dict, padstack_config: PadstackConfig, units: str, to_mil_func, instance_map: dict = None):
+        self._data = data_dict
+        self._instance_map = instance_map or {}
+        self.id = data_dict.get("id")
         self.name = data_dict["name"]
         self.type = data_dict['type']
         self.x = data_dict["x"]
@@ -65,6 +68,17 @@ class ViaInstance:
         self.padstack = padstack_config
         self.placed_pins = []
 
+    def get_effective_name(self):
+        """Recursively finds the root parent's name if connected, otherwise returns its own name."""
+        connected_id = self.properties.get('connectedDiffPairId')
+        if connected_id and self._instance_map and connected_id in self._instance_map:
+            parent_data = self._instance_map[connected_id]
+            # Create a temporary ViaInstance to recurse
+            # (In a real scenario we might want a more efficient lookup)
+            parent_via = ViaInstance(parent_data, self.padstack, self._units, self._to_mil, self._instance_map)
+            return parent_via.get_effective_name()
+        return self.name
+
     def _get_feed_points(self, path_data):
         """Converts path coordinates to unit strings."""
         return [self._to_mil(pt['x'], pt['y']) for pt in path_data]
@@ -76,12 +90,17 @@ class ViaInstance:
     def place_via(self, edb_padstacks):
         """Places the via instance(s) in the EDB project based on its type."""
         center = self._to_mil(self.x, self.y)
+        eff_name = self.get_effective_name()
         
         if self.type == 'gnd':
             via = edb_padstacks.place(center, self.padstack_name, 'GND', is_pin=True)
+            via.start_layer = self.padstack.start_layer
+            via.stop_layer = self.padstack.stop_layer
             self.placed_pins.append(via)
         elif self.type == 'single':
-            via = edb_padstacks.place(center, self.padstack_name, 'net_'+self.name, is_pin=True)
+            via = edb_padstacks.place(center, self.padstack_name, 'net_'+eff_name, is_pin=True)
+            via.start_layer = self.padstack.start_layer
+            via.stop_layer = self.padstack.stop_layer
             self.placed_pins.append(via)
             if self.padstack.bd_enabled:
                 via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
@@ -100,8 +119,14 @@ class ViaInstance:
             else: # horizontal
                 n_loc = self._to_mil(self.x + pitch / 2, self.y)
                 p_loc = self._to_mil(self.x - pitch / 2, self.y)
-            via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+self.name, is_pin=True)
-            via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+self.name, is_pin=True)
+            via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+eff_name, is_pin=True)
+            via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+eff_name, is_pin=True)
+            
+            via_p.start_layer = self.padstack.start_layer
+            via_p.stop_layer = self.padstack.stop_layer
+            via_n.start_layer = self.padstack.start_layer
+            via_n.stop_layer = self.padstack.stop_layer
+
             self.placed_pins.append(via_p)
             self.placed_pins.append(via_n)
             if self.padstack.bd_enabled:
@@ -178,13 +203,14 @@ class ViaInstance:
 
         feed_in_layer = self.properties.get('feedIn')
         feed_out_layer = self.properties.get('feedOut')
+        eff_name = self.get_effective_name()
 
         if self.type == 'single':
             # Input Port
             if feed_in_layer:
                 feed_in_width = self._get_feed_width('feedInWidth')
                 in_pts = self._get_feed_points(self.feed_paths['feedIn'][0])
-                trace_in = create_trace_func(in_pts, feed_in_layer, feed_in_width, 'net_'+self.name)
+                trace_in = create_trace_func(in_pts, feed_in_layer, feed_in_width, 'net_'+eff_name)
                 edb_hfss.create_wave_port(trace_in, in_pts[-1], self.name + '_IN')
 
                 # Create Void if Pour is enabled
@@ -197,7 +223,7 @@ class ViaInstance:
             if feed_out_layer:
                 feed_out_width = self._get_feed_width('feedOutWidth')
                 out_pts = self._get_feed_points(self.feed_paths['feedOut'][0])
-                trace_out = create_trace_func(out_pts, feed_out_layer, feed_out_width, 'net_'+self.name)
+                trace_out = create_trace_func(out_pts, feed_out_layer, feed_out_width, 'net_'+eff_name)
                 edb_hfss.create_wave_port(trace_out, out_pts[-1], self.name + '_OUT')
 
                 # Create Void if Pour is enabled
@@ -212,8 +238,8 @@ class ViaInstance:
                 feed_in_width = self._get_feed_width('feedInWidth')
                 in_pts_p = self._get_feed_points(self.feed_paths['feedIn'][0])
                 in_pts_n = self._get_feed_points(self.feed_paths['feedIn'][1])
-                trace_in_p = create_trace_func(in_pts_p, feed_in_layer, feed_in_width, 'netp_'+self.name)
-                trace_in_n = create_trace_func(in_pts_n, feed_in_layer, feed_in_width, 'netn_'+self.name)
+                trace_in_p = create_trace_func(in_pts_p, feed_in_layer, feed_in_width, 'netp_'+eff_name)
+                trace_in_n = create_trace_func(in_pts_n, feed_in_layer, feed_in_width, 'netn_'+eff_name)
                 edb_hfss.create_differential_wave_port(
                     trace_in_p, in_pts_p[-1], trace_in_n, in_pts_n[-1], self.name + '_IN'
                 )
@@ -230,8 +256,8 @@ class ViaInstance:
                 feed_out_width = self._get_feed_width('feedOutWidth')
                 out_pts_p = self._get_feed_points(self.feed_paths['feedOut'][0])
                 out_pts_n = self._get_feed_points(self.feed_paths['feedOut'][1])
-                trace_out_p = create_trace_func(out_pts_p, feed_out_layer, feed_out_width, 'netp_'+self.name)
-                trace_out_n = create_trace_func(out_pts_n, feed_out_layer, feed_out_width, 'netn_'+self.name)
+                trace_out_p = create_trace_func(out_pts_p, feed_out_layer, feed_out_width, 'netp_'+eff_name)
+                trace_out_n = create_trace_func(out_pts_n, feed_out_layer, feed_out_width, 'netn_'+eff_name)
                 edb_hfss.create_differential_wave_port(
                     trace_out_p, out_pts_p[-1], trace_out_n, out_pts_n[-1], self.name + '_OUT'
                 )
@@ -506,7 +532,7 @@ class EdbProject:
             padstack_name = padstack_list[padstack_index]['name']
             padstack_config = self.padstack_configs[padstack_name]
             
-            via = ViaInstance(via_data, padstack_config, self.units, self._to_mil)
+            via = ViaInstance(via_data, padstack_config, self.units, self._to_mil, self.instance_map)
             self.via_instances.append(via)
 
         # 2. Create Voids (Must be done before placing vias or traces are placed)
@@ -517,11 +543,12 @@ class EdbProject:
         # 3. Place Vias (Padstack placements)
         for via in self.via_instances:
             via.place_via(self.edb.padstacks)
+            eff_name = via.get_effective_name()
             if via.type == 'single':
-                self.edb.nets.find_or_create_net('net_'+via.name)
+                self.edb.nets.find_or_create_net('net_'+eff_name)
             if via.type == 'differential':
-                self.edb.nets.find_or_create_net('netp_'+via.name)
-                self.edb.nets.find_or_create_net('netn_'+via.name)                
+                self.edb.nets.find_or_create_net('netp_'+eff_name)
+                self.edb.nets.find_or_create_net('netn_'+eff_name)                
 
         # 4. Create Traces and Ports
         for via in self.via_instances:

@@ -1,3 +1,4 @@
+import { state } from './state.js';
 
 export function addMessage(msg) {
     const msgBody = document.getElementById('message-body');
@@ -207,6 +208,7 @@ export function calculateFeedPaths(inst, boardW, boardH) {
             const path1 = [];
             const path2 = [];
 
+
             for (let i = 0; i < centerPoints.length; i++) {
                 const pt = centerPoints[i];
                 let dx, dy;
@@ -233,6 +235,7 @@ export function calculateFeedPaths(inst, boardW, boardH) {
                     path2.push({ x: pt.x, y: pt.y });
                 }
             }
+
 
             // Apply 45-degree Fan-out Logic
             const p1_jogEnd = {
