@@ -556,4 +556,14 @@ legend {
     pointer-events: none;
 }
 
-```
+.indent-item {
+    padding-left: 25px !important;
+    position: relative;
+}
+
+.indent-item::before {
+    content: "┕";
+    position: absolute;
+    left: 10px;
+    color: #666;
+}

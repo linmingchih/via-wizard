@@ -1082,4 +1082,89 @@ export class PlacementCanvas {
         t = Math.max(0, Math.min(1, t));
         return (p.x - (v.x + t * (w.x - v.x))) ** 2 + (p.y - (v.y + t * (w.y - v.y))) ** 2;
     }
+
+    getDogBoneGeometry(inst) {
+        const parentId = inst.properties.connectedDiffPairId;
+        if (!parentId) return null;
+        const parent = state.placedInstances.find(i => i.id === parseInt(parentId));
+        if (!parent) return null;
+
+        const length = inst.properties.length || 20;
+        const posAngle = inst.properties.posAngle || 45;
+        const negAngle = inst.properties.negAngle || 135;
+
+        if (parent.type === 'differential' || parent.type === 'diff_gnd') {
+            const pitch = parent.properties.pitch || 1.0;
+            const isVert = parent.properties.orientation === 'vertical';
+            const dx = isVert ? 0 : pitch / 2;
+            const dy = isVert ? pitch / 2 : 0;
+
+            const p1 = { x: parent.x - dx, y: parent.y - dy };
+            const p2 = { x: parent.x + dx, y: parent.y + dy };
+
+            const radPos = posAngle * Math.PI / 180;
+            const radNeg = negAngle * Math.PI / 180;
+
+            return {
+                type: 'diff',
+                posX: p1.x, posY: p1.y,
+                negX: p2.x, negY: p2.y,
+                pEnd: { x: p1.x + length * Math.cos(radPos), y: p1.y + length * Math.sin(radPos) },
+                nEnd: { x: p2.x + length * Math.cos(radNeg), y: p2.y + length * Math.sin(radNeg) }
+            };
+        } else {
+            const angle = inst.properties.angle !== undefined ? inst.properties.angle : 45;
+            const rad = angle * Math.PI / 180;
+            return {
+                type: 'single',
+                startX: parent.x,
+                startY: parent.y,
+                end: { x: parent.x + length * Math.cos(rad), y: parent.y + length * Math.sin(rad) }
+            };
+        }
+    }
+
+    getSurroundViaArrayGeometry(inst) {
+        const parentId = inst.properties.connectedDiffPairId;
+        if (!parentId) return null;
+        const parent = state.placedInstances.find(i => i.id === parseInt(parentId));
+        if (!parent || (parent.type !== 'differential' && parent.type !== 'diff_gnd')) return null;
+
+        const r = inst.properties.gndRadius || 15;
+        const n = inst.properties.gndCount || 3;
+        const step = inst.properties.gndAngleStep || 30;
+        const isVert = parent.properties.orientation === 'vertical';
+
+        const pitch = parent.properties.pitch || 40;
+        const dx = isVert ? 0 : pitch / 2;
+        const dy = isVert ? pitch / 2 : 0;
+        const centers = [];
+
+        const angles = [];
+        if (n % 2 !== 0) {
+            angles.push(0);
+            for (let i = 1; i <= (n - 1) / 2; i++) {
+                angles.push(i * step);
+                angles.push(-i * step);
+            }
+        } else {
+            for (let i = 1; i <= n / 2; i++) {
+                const a = (2 * i - 1) * step / 2;
+                angles.push(a);
+                angles.push(-a);
+            }
+        }
+
+        const base1 = isVert ? 270 : 180;
+        const base2 = isVert ? 90 : 0;
+
+        angles.forEach(a => {
+            const rad1 = (base1 + a) * Math.PI / 180;
+            centers.push({ x: (parent.x - dx) + r * Math.cos(rad1), y: (parent.y - dy) + r * Math.sin(rad1) });
+            const rad2 = (base2 + a) * Math.PI / 180;
+            centers.push({ x: (parent.x + dx) + r * Math.cos(rad2), y: (parent.y + dy) + r * Math.sin(rad2) });
+        });
+
+        return { centers };
+    }
 }

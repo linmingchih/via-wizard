@@ -218,6 +218,10 @@ export function placeInstance(x, y) {
         newInst.properties.gndCount = 3;
         newInst.properties.gndAngleStep = 30;
         newInst.properties.gndPadstackIndex = parseInt(padstackIndex);
+    } else if (state.placementMode === 'gnd') {
+        newInst.properties.connectedDiffPairId = null;
+        newInst.properties.relX = 0;
+        newInst.properties.relY = 0;
     }
 
     state.placedInstances.push(newInst);
@@ -236,20 +240,63 @@ export function renderPlacedList() {
     if (!list) return;
     list.innerHTML = '';
 
-    // Sort instances by name for display
-    const sortedInstances = [...state.placedInstances].sort((a, b) => {
+    // 1. Separate independent and dependent instances
+    const independent = [];
+    const dependentMap = {}; // parentId (string) -> [children]
+
+    state.placedInstances.forEach(inst => {
+        const rawParentId = inst.properties.connectedDiffPairId;
+        // Check if parent effectively exists
+        const parentId = (rawParentId !== null && rawParentId !== undefined && rawParentId !== "") ? rawParentId.toString() : null;
+
+        if (!parentId) {
+            independent.push(inst);
+        } else {
+            if (!dependentMap[parentId]) dependentMap[parentId] = [];
+            dependentMap[parentId].push(inst);
+        }
+    });
+
+    // 2. Sort independent instances by name
+    const sortByName = (a, b) => {
         const nameA = (a.name || a.type).toString();
         const nameB = (b.name || b.type).toString();
         return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-    });
+    };
+    independent.sort(sortByName);
 
-    sortedInstances.forEach(inst => {
+    const processedIds = new Set();
+
+    // 3. Helper to render an item and its children recursively
+    const renderItem = (inst, level = 0) => {
+        if (processedIds.has(inst.id)) return;
+        processedIds.add(inst.id);
+
         const li = document.createElement('li');
         const pName = state.padstacks[inst.padstackIndex]?.name || 'Unknown';
         li.textContent = `${inst.name || inst.type} (${pName}) @ [${inst.x}, ${inst.y}]`;
+
         if (inst.id === state.selectedInstanceId) li.classList.add('active');
+        if (level > 0) li.classList.add('indent-item');
+
         li.onclick = () => selectInstance(inst.id);
         list.appendChild(li);
+
+        const children = dependentMap[inst.id.toString()];
+        if (children) {
+            children.sort(sortByName);
+            children.forEach(child => renderItem(child, level + 1));
+        }
+    };
+
+    // 4. Render independent items first
+    independent.forEach(inst => renderItem(inst, 0));
+
+    // 5. Handle Orphans (dependents whose parent is missing)
+    state.placedInstances.forEach(inst => {
+        if (!processedIds.has(inst.id)) {
+            renderItem(inst, 1); // Render as orphan (indented)
+        }
     });
 }
 
