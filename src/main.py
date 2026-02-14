@@ -4,8 +4,6 @@ import os
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-import webview
-
 from api import ViaWizardAPI
 
 
@@ -76,6 +74,8 @@ def create_web_handler(api, gui_dir):
 
 
 def run_pywebview():
+    import webview
+
     api = ViaWizardAPI()
     gui_dir = os.path.join(os.path.dirname(__file__), "gui")
     index_path = os.path.join(gui_dir, "index.html")
@@ -106,12 +106,14 @@ def run_webgui(host, port):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--webgui", action="store_true", help="Run frontend in browser mode instead of pywebview.")
+    parser.add_argument("--mode", choices=["web", "desktop"], default="desktop", help="Launch mode.")
+    parser.add_argument("--webgui", action="store_true", help="Legacy flag. Same as --mode web.")
     parser.add_argument("--host", default="127.0.0.1", help="Host for browser mode.")
     parser.add_argument("--port", type=int, default=8080, help="Port for browser mode.")
     args = parser.parse_args()
 
-    if args.webgui:
+    launch_mode = "web" if args.webgui else args.mode
+    if launch_mode == "web":
         run_webgui(args.host, args.port)
     else:
         run_pywebview()

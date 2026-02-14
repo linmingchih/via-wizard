@@ -4,7 +4,7 @@ setlocal EnableDelayedExpansion
 :: Toggle UI framework here:
 :: True  -> browser web GUI
 :: False -> pywebview desktop GUI
-set "WEBGUI=True"
+set "WEBGUI=False"
 set "WEBGUI_HOST=127.0.0.1"
 set "WEBGUI_PORT=8080"
 
@@ -50,10 +50,12 @@ call .venv\Scripts\activate.bat
 
 if /I "%WEBGUI%"=="True" (
     echo Launch mode: browser web GUI (%WEBGUI_HOST%:%WEBGUI_PORT%)
-    start "" python src\main.py --webgui --host %WEBGUI_HOST% --port %WEBGUI_PORT%
+    start "" python src\main.py --mode web --host %WEBGUI_HOST% --port %WEBGUI_PORT%
+    goto :eof
 ) else (
     echo Launch mode: pywebview desktop GUI
-    start "" pythonw src\main.py
+    start "" pythonw src\main.py --mode desktop
+    goto :eof
 )
 
 endlocal

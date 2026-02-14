@@ -129,7 +129,6 @@ export const api = {
 
         const projectName = prompt('Project name (used as output file base name):', 'project');
         if (projectName === null) return;
-        const outputDir = prompt('Output directory on this machine (blank = default ./exports):', '');
 
         const response = await fetch('/api/export_aedb', {
             method: 'POST',
@@ -137,8 +136,7 @@ export const api = {
             body: JSON.stringify({
                 projectData,
                 version,
-                projectName: projectName || 'project',
-                outputDir: outputDir || null
+                projectName: projectName || 'project'
             })
         });
         const contentType = response.headers.get('content-type') || '';
