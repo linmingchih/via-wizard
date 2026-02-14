@@ -105,28 +105,33 @@ window.saveProject = async () => {
 };
 
 window.openFile = async () => {
-    const path = await api.openFile();
-    if (path && path.endsWith('.xml')) {
-        const result = await api.parseStackupXml(path);
-        let layers = result;
-        let unit = 'mm';
-        if (result && !Array.isArray(result) && result.layers) {
-            layers = result.layers;
-            unit = result.unit || 'mm';
-        }
+    const selected = await api.openFile();
+    if (!selected) return;
 
-        if (layers) {
-            resetProjectData();
-            state.currentStackup = layers;
-            state.currentUnits = unit;
+    const isWebFile = typeof selected === 'object' && selected.content;
+    const isDesktopXmlPath = typeof selected === 'string' && selected.toLowerCase().endsWith('.xml');
+    if (!isWebFile && !isDesktopXmlPath) return;
 
-            const radio = document.querySelector(`input[name="units"][value="${unit}"]`);
-            if (radio) radio.checked = true;
+    const result = await api.parseStackupXml(selected);
+    let layers = [];
+    let unit = 'mm';
+    if (result && result.layers) {
+        layers = result.layers;
+        unit = result.unit || 'mm';
+    }
 
-            stackup.renderStackupTable();
-            stackup.render2DView();
-            addMessage(`Loaded stackup from ${path}`);
-        }
+    if (layers.length > 0) {
+        resetProjectData();
+        state.currentStackup = layers;
+        state.currentUnits = unit;
+
+        const radio = document.querySelector(`input[name="units"][value="${unit}"]`);
+        if (radio) radio.checked = true;
+
+        stackup.renderStackupTable();
+        stackup.render2DView();
+        const sourceLabel = isWebFile ? selected.name : selected;
+        addMessage(`Loaded stackup from ${sourceLabel}`);
     }
 };
 
@@ -162,19 +167,32 @@ window.openTab = function (tabId) {
     }
 };
 
-// Initialization
-window.addEventListener('pywebviewready', function () {
+function initializeDefaultStackup() {
     addMessage("Via Wizard GUI Initialized.");
-    api.parseStackupXml('stack.xml').then(layers => {
-        if (layers && layers.length > 0) {
-            state.currentStackup = layers;
+    api.loadDefaultStackup().then(result => {
+        if (result && result.layers && result.layers.length > 0) {
+            state.currentStackup = result.layers;
+            state.currentUnits = result.unit || 'mm';
+            const radio = document.querySelector(`input[name="units"][value="${state.currentUnits}"]`);
+            if (radio) radio.checked = true;
             stackup.renderStackupTable();
             stackup.render2DView();
-            addMessage(`Loaded ${layers.length} layers from stack.xml`);
+            addMessage(`Loaded ${result.layers.length} default stackup layers`);
         }
     }).catch(err => {
-        // addMessage("Error loading stackup: " + err);
+        addMessage(`Error loading default stackup: ${err}`);
     });
+}
+
+// Initialization
+window.addEventListener('pywebviewready', function () {
+    initializeDefaultStackup();
+});
+
+window.addEventListener('DOMContentLoaded', function () {
+    if (!window.pywebview) {
+        initializeDefaultStackup();
+    }
 });
 
 // Global Error Handler

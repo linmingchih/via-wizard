@@ -2,6 +2,12 @@ import webview
 import time
 import xml.etree.ElementTree as ET
 import os
+import json
+import threading
+import subprocess
+import sys
+import shutil
+from datetime import datetime
 
 class ViaWizardAPI:
     def __init__(self):
@@ -32,8 +38,26 @@ class ViaWizardAPI:
 
         try:
             tree = ET.parse(path)
-            root = tree.getroot()
-            
+            return self._parse_stackup_root(tree.getroot())
+        except Exception as e:
+            self.log_message(f"Error parsing XML: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"layers": [], "unit": "mm"}
+
+    def parse_stackup_xml_content(self, xml_content):
+        print("API: parse_stackup_xml_content called")
+        try:
+            root = ET.fromstring(xml_content)
+            return self._parse_stackup_root(root)
+        except Exception as e:
+            self.log_message(f"Error parsing XML content: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"layers": [], "unit": "mm"}
+
+    def _parse_stackup_root(self, root):
+        try:
             # Helper to find node with or without namespace
             def find_node(parent, tag):
                 # Try direct find
@@ -148,7 +172,6 @@ class ViaWizardAPI:
                 
             self.log_message(f"Parsed {len(layers)} layers from XML. Unit: {length_unit}")
             return {"layers": layers, "unit": length_unit}
-
         except Exception as e:
             self.log_message(f"Error parsing XML: {e}")
             import traceback
@@ -426,52 +449,8 @@ class ViaWizardAPI:
                 with open(file_path, 'w') as f:
                     json.dump(data, f, indent=4)
                 self.log_message(f"Project saved to {file_path}")
-                
-                # Flatten Data
-                self.log_message("Flattening project data...")
-                flattened_data = self.flatten_project_data(data)
-                
-                # Save Flattened JSON
-                flatten_path = os.path.splitext(file_path)[0] + '_flatten.json'
-                with open(flatten_path, 'w') as f:
-                    json.dump(flattened_data, f, indent=4)
-                self.log_message(f"Flattened project saved to {flatten_path}")
-                
-                # Call modeling.py
-                import subprocess
-                import sys
-                
-                # Assume modeling.py is in the same directory as api.py
-                script_path = os.path.join(os.path.dirname(__file__), 'modeling.py')
-                
-                self.log_message(f"Calling modeling.py with {flatten_path} and version {version}")
-                
-                def run_export():
-                    try:
-                        process = subprocess.Popen(
-                            [sys.executable, script_path, flatten_path, version],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True
-                        )
-                        stdout, stderr = process.communicate()
-                        
-                        if stdout:
-                            self.log_message(f"Export Output:\n{stdout}")
-                        if stderr:
-                            self.log_message(f"Export Error:\n{stderr}")
-                            
-                        # Calculate expected AEDB path
-                        aedb_path = os.path.splitext(flatten_path)[0] + '.aedb'
-                        self.log_message(f"AEDB File generated at: {aedb_path}")
-                        
-                    except Exception as e:
-                        self.log_message(f"Export process failed: {e}")
-                        
-                import threading
-                t = threading.Thread(target=run_export)
-                t.start()
-                
+
+                self._start_export_thread(file_path, data, version)
                 self.log_message("Export process started...")
                 return True
         except Exception as e:
@@ -479,6 +458,83 @@ class ViaWizardAPI:
             import traceback
             traceback.print_exc()
         return False
+
+    def export_aedb_web(self, data, version, output_dir=None, project_name=None):
+        print(f"API: export_aedb_web called with version {version}")
+        try:
+            if not output_dir:
+                output_dir = os.path.join(os.getcwd(), "exports")
+            os.makedirs(output_dir, exist_ok=True)
+
+            if not project_name:
+                project_name = f"project_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            safe_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in project_name)
+            file_path = os.path.join(output_dir, f"{safe_name}.json")
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4)
+
+            self._run_export(file_path, data, version)
+            flatten_path = os.path.splitext(file_path)[0] + '_flatten.json'
+            aedb_path = os.path.splitext(flatten_path)[0] + '.aedb'
+
+            if not os.path.isdir(aedb_path):
+                return {"success": False, "error": f"AEDB folder was not generated: {aedb_path}"}
+
+            zip_base = os.path.splitext(file_path)[0] + ".aedb"
+            zip_path = shutil.make_archive(
+                base_name=zip_base,
+                format="zip",
+                root_dir=os.path.dirname(aedb_path),
+                base_dir=os.path.basename(aedb_path)
+            )
+            return {
+                "success": True,
+                "projectJson": file_path,
+                "flattenJson": flatten_path,
+                "aedbPath": aedb_path,
+                "zipPath": zip_path,
+                "zipName": os.path.basename(zip_path),
+            }
+        except Exception as e:
+            self.log_message(f"Error exporting AEDB (web): {e}")
+            return {"success": False, "error": str(e)}
+
+    def _start_export_thread(self, file_path, data, version):
+        t = threading.Thread(target=self._run_export, args=(file_path, data, version))
+        t.start()
+
+    def _run_export(self, file_path, data, version):
+        try:
+            self.log_message("Flattening project data...")
+            flattened_data = self.flatten_project_data(data)
+
+            flatten_path = os.path.splitext(file_path)[0] + '_flatten.json'
+            with open(flatten_path, 'w', encoding='utf-8') as f:
+                json.dump(flattened_data, f, indent=4)
+            self.log_message(f"Flattened project saved to {flatten_path}")
+
+            script_path = os.path.join(os.path.dirname(__file__), 'modeling.py')
+            self.log_message(f"Calling modeling.py with {flatten_path} and version {version}")
+
+            process = subprocess.Popen(
+                [sys.executable, script_path, flatten_path, version],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate()
+
+            if stdout:
+                self.log_message(f"Export Output:\n{stdout}")
+            if stderr:
+                self.log_message(f"Export Error:\n{stderr}")
+
+            aedb_path = os.path.splitext(flatten_path)[0] + '.aedb'
+            self.log_message(f"AEDB File generated at: {aedb_path}")
+        except Exception as e:
+            self.log_message(f"Export process failed: {e}")
 
     def load_project(self):
         print("API: load_project called")

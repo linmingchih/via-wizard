@@ -28,5 +28,10 @@ export async function exportAEDB() {
     };
 
     addMessage(`Exporting to AEDB version ${version}...`);
-    await api.exportAEDB(projectData, version);
+    const result = await api.exportAEDB(projectData, version);
+    if (result && result.success) {
+        addMessage(`AEDB export complete: ${result.aedbPath}`);
+    } else if (result && result.error) {
+        addMessage(`AEDB export failed: ${result.error}`);
+    }
 }
