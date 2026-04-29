@@ -39,6 +39,7 @@ window.deleteInstance = placement.deleteInstance;
 
 // Simulation
 window.exportAEDB = simulation.exportAEDB;
+window.saveAedbVersion = (value) => api.setConfig({ aedbVersion: value });
 
 // API
 window.loadProject = async () => {
@@ -165,6 +166,12 @@ window.openTab = function (tabId) {
 // Initialization
 window.addEventListener('pywebviewready', function () {
     addMessage("Via Wizard GUI Initialized.");
+    api.getConfig().then(cfg => {
+        if (cfg && cfg.aedbVersion) {
+            const vInput = document.getElementById('aedb-version');
+            if (vInput) vInput.value = cfg.aedbVersion;
+        }
+    });
     api.parseStackupXml('stack.xml').then(layers => {
         if (layers && layers.length > 0) {
             state.currentStackup = layers;

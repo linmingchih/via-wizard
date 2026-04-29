@@ -2,6 +2,9 @@ import webview
 import time
 import xml.etree.ElementTree as ET
 import os
+import json
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 
 class ViaWizardAPI:
     def __init__(self):
@@ -502,6 +505,29 @@ class ViaWizardAPI:
             import traceback
             traceback.print_exc()
         return None
+
+    def get_config(self):
+        print("API: get_config called")
+        try:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Error reading config: {e}")
+        return {}
+
+    def set_config(self, config):
+        print(f"API: set_config called with {config}")
+        try:
+            existing = {}
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r') as f:
+                    existing = json.load(f)
+            existing.update(config)
+            with open(CONFIG_PATH, 'w') as f:
+                json.dump(existing, f, indent=4)
+        except Exception as e:
+            print(f"Error writing config: {e}")
 
     def exit_app(self):
         print("API: exit_app called")

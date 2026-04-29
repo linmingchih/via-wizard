@@ -464,7 +464,7 @@ class DogBoneFeed:
 
                 # End-pad
                 edb_project.edb.padstacks.place(
-                    self._to_mil(end_x, end_y), pad_name, 'GND', is_pin=False
+                    self._to_mil(end_x, end_y), pad_name, 'GND', is_pin=True
                 )
 
                 # Void on reference plane

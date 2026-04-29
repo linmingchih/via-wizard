@@ -52,5 +52,18 @@ export const api = {
         if (window.pywebview) {
             await window.pywebview.api.exit_app();
         }
+    },
+
+    async getConfig() {
+        if (window.pywebview) {
+            return await window.pywebview.api.get_config();
+        }
+        return {};
+    },
+
+    async setConfig(config) {
+        if (window.pywebview) {
+            await window.pywebview.api.set_config(config);
+        }
     }
 };
