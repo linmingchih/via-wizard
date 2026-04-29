@@ -213,6 +213,7 @@ export function placeInstance(x, y) {
         newInst.properties.negAngle = 135;
         newInst.properties.diameter = 10;
         newInst.properties.void = 0;
+        newInst.properties.gndAngles = [];
     } else if (state.placementMode === 'surround_via_array') {
         newInst.properties.connectedDiffPairId = null;
         newInst.properties.gndRadius = 15;
@@ -639,9 +640,9 @@ export function renderPropertiesPanel() {
             `;
         }
     } else if (inst.type === 'dog_bone') {
-        // Connected Parent (Diff Pair, Single, or GND)
+        // Connected Parent (Diff Pair, Single, GND, or Surround Via Array)
         const potentialParents = state.placedInstances.filter(i =>
-            ['differential', 'diff_gnd', 'single', 'gnd'].includes(i.type)
+            ['differential', 'diff_gnd', 'single', 'gnd', 'surround_via_array'].includes(i.type)
         );
         const parentOpts = potentialParents.map(p => `<option value="${p.id}" ${p.id === inst.properties.connectedDiffPairId ? 'selected' : ''}>${p.name}</option>`).join('');
 
@@ -670,8 +671,29 @@ export function renderPropertiesPanel() {
         const parentId = inst.properties.connectedDiffPairId;
         const parent = state.placedInstances.find(i => i.id === parentId);
         const isSingleOrGnd = parent && (parent.type === 'single' || parent.type === 'gnd');
+        const isSurroundArray = parent && parent.type === 'surround_via_array';
 
-        if (isSingleOrGnd) {
+        if (isSurroundArray) {
+            const n = (parent.properties.gndCount || 3) * 2;
+            const gndAngles = Array.isArray(inst.properties.gndAngles) ? inst.properties.gndAngles : [];
+            const defaultOutward = computeSurroundOutwardAngles(parent);
+            html += `
+                <tr onclick="window.togglePropSection('gnd-bone-angle-rows-${inst.id}', this)" style="cursor:pointer; user-select:none;">
+                    <td colspan="2" style="background:#444; font-weight:bold; font-size:0.9em;">
+                        <span class="toggle-icon">▼</span> GND Angles
+                    </td>
+                </tr>
+            `;
+            for (let i = 0; i < n; i++) {
+                const aVal = gndAngles[i] !== undefined ? gndAngles[i] : (defaultOutward[i] !== undefined ? defaultOutward[i] : 0);
+                html += `
+                    <tr class="gnd-bone-angle-rows-${inst.id}">
+                        <td>GND #${i} Angle</td>
+                        <td><input id="prop-gndAngle${i}-${inst.id}" type="number" value="${aVal}" oninput="window.updateInstanceProp(${inst.id}, 'gndAngle_${i}', this.value)"></td>
+                    </tr>
+                `;
+            }
+        } else if (isSingleOrGnd) {
             html += `
                 <tr>
                     <td>Angle</td>
@@ -841,6 +863,30 @@ export function updateInstanceProp(id, key, value) {
             // Initialize relative position if not present
             if (inst.properties.relX === undefined) inst.properties.relX = 5;
             if (inst.properties.relY === undefined) inst.properties.relY = 5;
+        }
+        // Initialize gndAngles when connecting dog_bone to surround_via_array
+        if (inst.type === 'dog_bone' && idVal) {
+            const parentInst = state.placedInstances.find(i => i.id === idVal);
+            if (parentInst && parentInst.type === 'surround_via_array') {
+                const n = (parentInst.properties.gndCount || 3) * 2;
+                const current = Array.isArray(inst.properties.gndAngles) ? inst.properties.gndAngles : [];
+                const outward = computeSurroundOutwardAngles(parentInst);
+                inst.properties.gndAngles = Array.from({ length: n }, (_, i) =>
+                    current[i] !== undefined ? current[i] : (outward[i] !== undefined ? outward[i] : 0)
+                );
+            }
+        }
+    }
+    // Individual GND angle in a surround array dog bone
+    else if (/^gndAngle_\d+$/.test(key)) {
+        const index = parseInt(key.split('_')[1]);
+        const val = parseFloat(value);
+        if (!isNaN(val)) {
+            if (!Array.isArray(inst.properties.gndAngles)) inst.properties.gndAngles = [];
+            inst.properties.gndAngles[index] = val;
+        } else {
+            renderPropertiesPanel();
+            return;
         }
     }
     // Relative position for GND
@@ -1083,6 +1129,40 @@ window.togglePropSection = function (className, header) {
     const icon = header.querySelector('.toggle-icon');
     if (icon) icon.textContent = isHidden ? '▼' : '▶';
 };
+
+// Compute outward angles for each GND via in a surround_via_array.
+// The outward angle for a GND placed at (base+a)° from its signal via is exactly (base+a)°.
+function computeSurroundOutwardAngles(surroundInst) {
+    const n = surroundInst.properties.gndCount || 3;
+    const step = surroundInst.properties.gndAngleStep || 30;
+    const diffPairId = surroundInst.properties.connectedDiffPairId;
+    const diffPair = diffPairId ? state.placedInstances.find(i => i.id === parseInt(diffPairId)) : null;
+    const isVert = diffPair ? diffPair.properties.orientation === 'vertical' : false;
+
+    const angles = [];
+    if (n % 2 !== 0) {
+        angles.push(0);
+        for (let i = 1; i <= (n - 1) / 2; i++) {
+            angles.push(i * step);
+            angles.push(-i * step);
+        }
+    } else {
+        for (let i = 1; i <= n / 2; i++) {
+            const a = (2 * i - 1) * step / 2;
+            angles.push(a);
+            angles.push(-a);
+        }
+    }
+
+    const base1 = isVert ? 270 : 180;
+    const base2 = isVert ? 90 : 0;
+    const outward = [];
+    angles.forEach(a => {
+        outward.push(base1 + a); // GND around P1 (negative-side signal via)
+        outward.push(base2 + a); // GND around P2 (positive-side signal via)
+    });
+    return outward;
+}
 
 function syncConnectedProperties(childInst, parentId) {
     const parent = state.placedInstances.find(i => i.id === parentId);

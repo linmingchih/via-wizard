@@ -427,6 +427,19 @@ export class PlacementCanvas {
                         this.ctx.beginPath();
                         this.ctx.arc(geom.end.x, geom.end.y, diam / 2, 0, 2 * Math.PI);
                         this.ctx.fill();
+                    } else if (geom.type === 'surround') {
+                        // Draw a line + end circle for each GND via individually
+                        // (separate beginPath per arc to avoid implicit connecting lines)
+                        geom.lines.forEach(line => {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(line.startX, line.startY);
+                            this.ctx.lineTo(line.end.x, line.end.y);
+                            this.ctx.stroke();
+
+                            this.ctx.beginPath();
+                            this.ctx.arc(line.end.x, line.end.y, diam / 2, 0, 2 * Math.PI);
+                            this.ctx.fill();
+                        });
                     } else {
                         // Draw Diff Lines
                         const { posX, posY, negX, negY, pEnd, nEnd } = geom;
@@ -1035,6 +1048,12 @@ export class PlacementCanvas {
                     if (Math.hypot(geom.end.x - x, geom.end.y - y) <= r) return true;
                     // Check line
                     if (this.distToSegmentSquared({ x, y }, { x: geom.startX, y: geom.startY }, { x: geom.end.x, y: geom.end.y }) <= (inst.properties.lineWidth / 2) ** 2) return true;
+                } else if (geom.type === 'surround') {
+                    const lw2 = (inst.properties.lineWidth / 2) ** 2;
+                    for (const line of geom.lines) {
+                        if (Math.hypot(line.end.x - x, line.end.y - y) <= r) return true;
+                        if (this.distToSegmentSquared({ x, y }, { x: line.startX, y: line.startY }, { x: line.end.x, y: line.end.y }) <= lw2) return true;
+                    }
                 } else {
                     const { pEnd, nEnd } = geom;
                     if (Math.hypot(pEnd.x - x, pEnd.y - y) <= r) return true;
@@ -1112,6 +1131,20 @@ export class PlacementCanvas {
                 pEnd: { x: p1.x + length * Math.cos(radPos), y: p1.y + length * Math.sin(radPos) },
                 nEnd: { x: p2.x + length * Math.cos(radNeg), y: p2.y + length * Math.sin(radNeg) }
             };
+        } else if (parent.type === 'surround_via_array') {
+            const surGeom = this.getSurroundViaArrayGeometry(parent);
+            if (!surGeom) return null;
+            const gndAngles = Array.isArray(inst.properties.gndAngles) ? inst.properties.gndAngles : [];
+            const lines = surGeom.centers.map((center, i) => {
+                const angle = gndAngles[i] !== undefined ? gndAngles[i] : surGeom.outwardAngles[i];
+                const rad = angle * Math.PI / 180;
+                return {
+                    startX: center.x,
+                    startY: center.y,
+                    end: { x: center.x + length * Math.cos(rad), y: center.y + length * Math.sin(rad) }
+                };
+            });
+            return { type: 'surround', lines };
         } else {
             const angle = inst.properties.angle !== undefined ? inst.properties.angle : 45;
             const rad = angle * Math.PI / 180;
@@ -1157,14 +1190,17 @@ export class PlacementCanvas {
 
         const base1 = isVert ? 270 : 180;
         const base2 = isVert ? 90 : 0;
+        const outwardAngles = [];
 
         angles.forEach(a => {
             const rad1 = (base1 + a) * Math.PI / 180;
             centers.push({ x: (parent.x - dx) + r * Math.cos(rad1), y: (parent.y - dy) + r * Math.sin(rad1) });
+            outwardAngles.push(base1 + a);
             const rad2 = (base2 + a) * Math.PI / 180;
             centers.push({ x: (parent.x + dx) + r * Math.cos(rad2), y: (parent.y + dy) + r * Math.sin(rad2) });
+            outwardAngles.push(base2 + a);
         });
 
-        return { centers };
+        return { centers, outwardAngles };
     }
 }
