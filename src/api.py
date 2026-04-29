@@ -407,6 +407,10 @@ class ViaWizardAPI:
                     add_gnds(s1, angle_base1, 1)
                     add_gnds(s2, angle_base2, 2)
 
+                    # Keep the surround_via_array entry itself so dog_bone instances
+                    # connected to it can still find their parent in the flattened data.
+                    new_instances.append(inst)
+
             else:
                 new_instances.append(inst)
                 

@@ -5,7 +5,64 @@ from pyedb import Edb
 from functools import partial
 import math
 
-# --- 1. PadstackConfig Class ---
+def _compute_surround_centers_and_outward_angles(surround_data: dict, instance_map: dict):
+    """Compute GND via centers and outward angles for a surround_via_array instance.
+    Mirrors the logic in canvas.js getSurroundViaArrayGeometry."""
+    props = surround_data.get('properties', {})
+    r = props.get('gndRadius', 15)
+    n = props.get('gndCount', 3)
+    step = props.get('gndAngleStep', 30)
+
+    diff_pair_id = props.get('connectedDiffPairId')
+    diff_pair = instance_map.get(diff_pair_id) if diff_pair_id else None
+
+    center_x = surround_data['x']
+    center_y = surround_data['y']
+    is_vert = False
+    pitch = 40
+
+    if diff_pair:
+        diff_props = diff_pair.get('properties', {})
+        is_vert = diff_props.get('orientation') == 'vertical'
+        pitch = diff_props.get('pitch', 40)
+        center_x = diff_pair['x']
+        center_y = diff_pair['y']
+
+    dx = 0.0 if is_vert else pitch / 2.0
+    dy = pitch / 2.0 if is_vert else 0.0
+
+    # Build relative-angle list (same algorithm as canvas.js)
+    angles = []
+    if n % 2 != 0:
+        angles.append(0)
+        for i in range(1, (n - 1) // 2 + 1):
+            angles.append(i * step)
+            angles.append(-i * step)
+    else:
+        for i in range(1, n // 2 + 1):
+            a = (2 * i - 1) * step / 2.0
+            angles.append(a)
+            angles.append(-a)
+
+    base1 = 270 if is_vert else 180  # around P1 (negative-side signal via)
+    base2 = 90  if is_vert else 0   # around P2 (positive-side signal via)
+
+    centers = []
+    outward_angles = []
+    for a in angles:
+        rad1 = math.radians(base1 + a)
+        centers.append(((center_x - dx) + r * math.cos(rad1),
+                        (center_y - dy) + r * math.sin(rad1)))
+        outward_angles.append(base1 + a)
+
+        rad2 = math.radians(base2 + a)
+        centers.append(((center_x + dx) + r * math.cos(rad2),
+                        (center_y + dy) + r * math.sin(rad2)))
+        outward_angles.append(base2 + a)
+
+    return centers, outward_angles
+
+
 class PadstackConfig:
     """Represents a Padstack definition from the JSON data."""
     def __init__(self, data_dict: dict, units: str):
@@ -376,6 +433,50 @@ class DogBoneFeed:
                 )
                 edb_project.edb.modeler.add_void(ref_rect, void_n)
 
+        elif parent_type == 'surround_via_array':
+            # --- Surround GND Array Logic ---
+            # Compute GND via center positions and default outward angles
+            centers, outward_angles = _compute_surround_centers_and_outward_angles(
+                self.parent, edb_project.instance_map
+            )
+            gnd_angles = self.properties.get('gndAngles', [])
+            if not isinstance(gnd_angles, list):
+                gnd_angles = []
+
+            length = float(self.properties.get('length', 20))
+
+            for i, (cx, cy) in enumerate(centers):
+                # Per-GND angle — fall back to outward radial direction
+                if i < len(gnd_angles) and gnd_angles[i] is not None:
+                    angle_deg = float(gnd_angles[i])
+                else:
+                    angle_deg = float(outward_angles[i])
+                angle_rad = math.radians(angle_deg)
+
+                end_x = cx + length * math.cos(angle_rad)
+                end_y = cy + length * math.sin(angle_rad)
+
+                # Trace from GND via center to end point
+                pts = [self._to_mil(cx, cy), self._to_mil(end_x, end_y)]
+                edb_project.edb.modeler.create_trace(
+                    pts, top_signal_layer, width, net_name='GND', end_cap_style='Round'
+                )
+
+                # End-pad
+                edb_project.edb.padstacks.place(
+                    self._to_mil(end_x, end_y), pad_name, 'GND', is_pin=False
+                )
+
+                # Void on reference plane
+                if void_val > 0 and ref_rect:
+                    void_c = edb_project.edb.modeler.create_circle(
+                        top_ref_layer,
+                        self._to_mil(end_x, end_y)[0],
+                        self._to_mil(end_x, end_y)[1],
+                        radius, net_name='GND'
+                    )
+                    edb_project.edb.modeler.add_void(ref_rect, void_c)
+
         else:
             # --- Single / GND Logic ---
             start_x = self.parent['x']
@@ -524,7 +625,7 @@ class EdbProject:
 
         # 1. Instantiate ViaInstance objects
         for via_data in self.data['placedInstances']:
-            if via_data['type'] == 'dog_bone':
+            if via_data['type'] in ('dog_bone', 'surround_via_array'):
                 continue
 
             padstack_index = via_data['padstackIndex']
