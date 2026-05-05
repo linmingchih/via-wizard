@@ -778,6 +778,14 @@ export class PlacementCanvas {
         this.ctx.restore();
     }
 
+    getSnapPoint(x, y) {
+        const snap = state.canvasState.gridSpacing;
+        return {
+            x: Math.round(x / snap) * snap,
+            y: Math.round(y / snap) * snap
+        };
+    }
+
     handleMouseDown(e) {
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = (e.clientX - rect.left - state.canvasState.offsetX) / state.canvasState.scale;
