@@ -129,7 +129,7 @@ class PadstackConfig:
         if self.dummy_layer_name and self.dummy_layer_name in padstack_def.pad_by_layer:
             dummy_pad = padstack_def.pad_by_layer[self.dummy_layer_name]
             dummy_pad.shape = 'Circle'
-            dummy_pad.parameters = {'Diameter': f'0{self.units}'}
+            dummy_pad.parameters = {'Diameter': self.hole_diameter}
 
             dummy_antipad = padstack_def.antipad_by_layer[self.dummy_layer_name]
             dummy_antipad.shape = 'Circle'
@@ -186,16 +186,16 @@ class ViaInstance:
             via.stop_layer = self.padstack.stop_layer
             self.placed_pins.append(via)
         elif self.type == 'single':
+            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
+                 via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+                 via_fill.start_layer = self.padstack.fill_start_layer
+                 via_fill.stop_layer = self.padstack.fill_stop_layer
             via = edb_padstacks.place(center, self.padstack_name, 'net_'+eff_name, is_pin=True)
             via.start_layer = self.padstack.signal_start_layer
             via.stop_layer = self.padstack.signal_stop_layer
             self.placed_pins.append(via)
             if self.padstack.bd_enabled and self.padstack.signal_backdrill_to_layer:
                 via.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
-            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
-                 via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                 via_fill.start_layer = self.padstack.fill_start_layer
-                 via_fill.stop_layer = self.padstack.fill_stop_layer
 
 
         elif self.type == 'differential':
@@ -207,6 +207,13 @@ class ViaInstance:
             else: # horizontal
                 n_loc = self._to_mil(self.x + pitch / 2, self.y)
                 p_loc = self._to_mil(self.x - pitch / 2, self.y)
+            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
+                via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+                via_fill_p.start_layer = self.padstack.fill_start_layer
+                via_fill_p.stop_layer = self.padstack.fill_stop_layer
+                via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+                via_fill_n.start_layer = self.padstack.fill_start_layer
+                via_fill_n.stop_layer = self.padstack.fill_stop_layer
             via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+eff_name, is_pin=True)
             via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+eff_name, is_pin=True)
 
@@ -220,13 +227,6 @@ class ViaInstance:
             if self.padstack.bd_enabled and self.padstack.signal_backdrill_to_layer:
                 via_p.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
                 via_n.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
-            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
-                via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                via_fill_p.start_layer = self.padstack.fill_start_layer
-                via_fill_p.stop_layer = self.padstack.fill_stop_layer
-                via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                via_fill_n.start_layer = self.padstack.fill_start_layer
-                via_fill_n.stop_layer = self.padstack.fill_stop_layer
 
     def _create_void_trace(self, path_points, layer_name, width_val, gap_val, edb_modeler, layer_rects):
         """Creates a void trace on the reference layer."""
@@ -712,6 +712,7 @@ class EdbProject:
         
         # Setup and Sweep
         setup = self.edb.create_hfss_setup("hfss_setup")
+        setup.via_settings.via_num_sides = 12
         setup.set_solution_single_frequency(frequency='2GHz', max_num_passes=20, max_delta_s=0.01)
 
         frequency_range = [["linear count", "0Hz", "0Hz", 1],
