@@ -4,7 +4,8 @@ export function addMessage(msg) {
     const msgBody = document.getElementById('message-body');
     if (!msgBody) return;
     const entry = document.createElement('div');
-    entry.className = 'log-entry';
+    const isWarning = typeof msg === 'string' && msg.startsWith('WARNING:');
+    entry.className = isWarning ? 'log-entry log-entry--warning' : 'log-entry';
     entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
     msgBody.appendChild(entry);
     msgBody.scrollTop = msgBody.scrollHeight;

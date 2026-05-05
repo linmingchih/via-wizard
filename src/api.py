@@ -464,7 +464,9 @@ class ViaWizardAPI:
                         stdout, stderr = process.communicate()
                         
                         if stdout:
-                            self.log_message(f"Export Output:\n{stdout}")
+                            for line in stdout.splitlines():
+                                if line.strip():
+                                    self.log_message(line)
                         if stderr:
                             self.log_message(f"Export Error:\n{stderr}")
                             

@@ -700,24 +700,40 @@ class EdbProject:
             raise ValueError(f"Padstack '{padstack_name}' stub length {stub_length}{self.units} is invalid.")
 
         remaining_stub = stub_length
-        total_dielectric_thickness = 0.0
+        total_thickness = 0.0
 
         for candidate_index in range(backdrill_stop_index + 1, via_stop_index):
             candidate = stackup[candidate_index]
             candidate_thickness = float(candidate.get('thickness', 0) or 0)
             if candidate_thickness == 0:
                 continue
-            if candidate['type'] != 'Dielectric':
-                continue
 
-            total_dielectric_thickness += candidate_thickness
+            total_thickness += candidate_thickness
+
             if remaining_stub <= candidate_thickness:
-                return candidate, remaining_stub, total_dielectric_thickness
+                if candidate['type'] == 'Conductor':
+                    print(
+                        f"WARNING: Padstack '{padstack_name}' stub end ({stub_length}{self.units}) falls inside "
+                        f"conductor layer '{candidate['name']}'. Snapping dummy layer to bottom of '{candidate['name']}'."
+                    )
+                    for next_index in range(candidate_index + 1, via_stop_index):
+                        next_layer = stackup[next_index]
+                        next_thickness = float(next_layer.get('thickness', 0) or 0)
+                        if next_thickness == 0:
+                            continue
+                        if next_layer['type'] == 'Dielectric':
+                            return next_layer, 0.0, total_thickness
+                    raise ValueError(
+                        f"Padstack '{padstack_name}' stub length {stub_length}{self.units} lands in conductor layer "
+                        f"'{candidate['name']}' with no dielectric layer below it before the via stop layer."
+                    )
+                return candidate, remaining_stub, total_thickness
+
             remaining_stub -= candidate_thickness
 
         raise ValueError(
-            f"Padstack '{padstack_name}' stub length {stub_length}{self.units} exceeds total dielectric thickness "
-            f"{round(total_dielectric_thickness, 6)}{self.units} between '{stackup[backdrill_stop_index]['name']}' and '{stackup[via_stop_index]['name']}'."
+            f"Padstack '{padstack_name}' stub length {stub_length}{self.units} exceeds total layer thickness "
+            f"{round(total_thickness, 6)}{self.units} between '{stackup[backdrill_stop_index]['name']}' and '{stackup[via_stop_index]['name']}'."
         )
 
     def _make_split_dielectric_layer(self, base_layer, segment_index, thickness):

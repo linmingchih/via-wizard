@@ -152,9 +152,9 @@ export function renderPadstackForm() {
     }
     setVal('bd-stub', p.backdrill.stub);
     setVal('bd-depth', p.backdrill.depth);
+    validateStubInput();
 
-    // Fill Properties
-    const fillCheck = document.getElementById('fill');
+    // Fill Properties    const fillCheck = document.getElementById('fill');
     if (fillCheck) fillCheck.checked = p.fill && p.fill.enabled;
 
     const fillPropsDiv = document.getElementById('fill-properties');
@@ -192,6 +192,7 @@ export function updatePadstackProperty(key, value) {
     }
     p[key] = value;
     if (key === 'name') renderPadstackList();
+    if (key === 'stopLayer') validateStubInput();
 
     // Trigger canvas redraw if available
     if (window.drawPlacementCanvas) window.drawPlacementCanvas();
@@ -234,6 +235,7 @@ export function updateBackdrillProperty(key, value) {
         value = parseFloat(value);
     }
     p.backdrill[key] = value;
+    validateStubInput();
 }
 
 export function toggleFill(enabled) {
@@ -273,4 +275,54 @@ export function updateFillProperty(key, value) {
         value = parseFloat(value);
     }
     p.fill[key] = value;
+}
+
+function _checkStubInMetal(stackup, stopLayerName, viaStopLayerName, stubLength) {
+    if (!stackup || !stopLayerName || !viaStopLayerName || stubLength <= 0) return null;
+    const stopIdx = stackup.findIndex(l => l.name === stopLayerName);
+    const viaStopIdx = stackup.findIndex(l => l.name === viaStopLayerName);
+    if (stopIdx === -1 || viaStopIdx === -1 || viaStopIdx <= stopIdx) return null;
+    let remaining = stubLength;
+    for (let i = stopIdx + 1; i < viaStopIdx; i++) {
+        const layer = stackup[i];
+        const thickness = parseFloat(layer.thickness) || 0;
+        if (thickness === 0) continue;
+        if (remaining <= thickness) {
+            return layer.type === 'Conductor' ? layer.name : null;
+        }
+        remaining -= thickness;
+    }
+    return null;
+}
+
+export function validateStubInput() {
+    const stubInput = document.getElementById('bd-stub');
+    const warningDiv = document.getElementById('bd-stub-warning');
+    if (!stubInput || !warningDiv) return;
+
+    const clearWarning = () => {
+        stubInput.classList.remove('input-error');
+        warningDiv.textContent = '';
+        warningDiv.classList.add('hidden');
+    };
+
+    if (state.currentPadstackIndex === -1) { clearWarning(); return; }
+    const p = state.padstacks[state.currentPadstackIndex];
+    if (!p.backdrill || !p.backdrill.enabled || !p.backdrill.toLayer) { clearWarning(); return; }
+
+    const stubLength = parseFloat(stubInput.value) || 0;
+    const metalLayerName = _checkStubInMetal(
+        state.currentStackup,
+        p.backdrill.toLayer,
+        p.stopLayer,
+        stubLength
+    );
+
+    if (metalLayerName) {
+        stubInput.classList.add('input-error');
+        warningDiv.textContent = `Warning: stub end falls within conductor layer "${metalLayerName}".`;
+        warningDiv.classList.remove('hidden');
+    } else {
+        clearWarning();
+    }
 }

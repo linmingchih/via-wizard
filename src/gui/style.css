@@ -210,6 +210,22 @@ body {
     margin-bottom: 4px;
 }
 
+.log-entry--warning {
+    color: #ffaa00;
+    font-weight: bold;
+}
+
+input.input-error {
+    border-color: #e05252 !important;
+    outline-color: #e05252 !important;
+}
+
+.field-warning {
+    color: #ffaa00;
+    font-size: 11px;
+    margin-top: 3px;
+}
+
 
 
 /* Stackup Table Column Widths */

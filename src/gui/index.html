@@ -230,7 +230,9 @@
                                     <div class="form-group">
                                         <label>Stub Length (mil):</label>
                                         <input type="number" id="bd-stub"
-                                            onchange="updateBackdrillProperty('stub', this.value)">
+                                            onchange="updateBackdrillProperty('stub', this.value)"
+                                            oninput="validateStubInput()">
+                                        <div id="bd-stub-warning" class="field-warning hidden"></div>
                                     </div>
                                 </div>
 

@@ -28,6 +28,7 @@ window.toggleBdMode = padstack.toggleBdMode;
 window.updateBackdrillProperty = padstack.updateBackdrillProperty;
 window.toggleFill = padstack.toggleFill;
 window.updateFillProperty = padstack.updateFillProperty;
+window.validateStubInput = padstack.validateStubInput;
 
 // Placement
 window.renderPlacementTab = placement.renderPlacementTab;
