@@ -5,6 +5,10 @@ from pyedb import Edb
 from functools import partial
 import math
 
+
+def _format_name_token(value):
+    return str(value).replace('.', 'p').replace('-', 'm')
+
 def _compute_surround_centers_and_outward_angles(surround_data: dict, instance_map: dict):
     """Compute GND via centers and outward angles for a surround_via_array instance.
     Mirrors the logic in canvas.js getSurroundViaArrayGeometry."""
@@ -66,6 +70,7 @@ def _compute_surround_centers_and_outward_angles(surround_data: dict, instance_m
 class PadstackConfig:
     """Represents a Padstack definition from the JSON data."""
     def __init__(self, data_dict: dict, units: str):
+        self.units = units
         self.name = data_dict['name']
         self.hole_diameter = f'{data_dict["holeDiameter"]}{units}'
         self.pad_size = f'{data_dict["padSize"]}{units}'
@@ -91,18 +96,44 @@ class PadstackConfig:
         self.fill_dk = fill_data.get('dk', 4.0)
         self.fill_df = fill_data.get('df', 0.02)
 
+        self.signal_start_layer = self.start_layer
+        self.signal_stop_layer = self.stop_layer
+        self.signal_backdrill_to_layer = None
+        self.fill_start_layer = None
+        self.fill_stop_layer = self.stop_layer
+        self.dummy_layer_name = None
+
+    def apply_modeling(self, modeling: dict | None):
+        if not modeling:
+            return
+        self.signal_stop_layer = modeling.get('signal_stop_layer', self.stop_layer)
+        self.signal_backdrill_to_layer = modeling.get('signal_backdrill_to_layer')
+        self.fill_start_layer = modeling.get('fill_start_layer')
+        self.fill_stop_layer = modeling.get('fill_stop_layer', self.stop_layer)
+        self.dummy_layer_name = modeling.get('dummy_layer_name')
+
     def create_in_edb(self, edb_padstacks):
         """Creates the padstack definition in the EDB project."""
-        edb_padstacks.create_padstack(
+        edb_padstacks.create(
             padstackname=self.name,
             holediam=self.hole_diameter,
             paddiam=self.pad_size,
             antipaddiam=self.antipad_size,
-            startlayer=self.start_layer,
-            endlayer=self.stop_layer,
+            start_layer=self.signal_start_layer,
+            stop_layer=self.signal_stop_layer,
         )
-        edb_padstacks.definitions[self.name].hole_plating_ratio = self.plating
-        edb_padstacks.definitions[self.name].material = self.material
+        padstack_def = edb_padstacks.definitions[self.name]
+        padstack_def.hole_plating_ratio = self.plating
+        padstack_def.material = self.material
+
+        if self.dummy_layer_name and self.dummy_layer_name in padstack_def.pad_by_layer:
+            dummy_pad = padstack_def.pad_by_layer[self.dummy_layer_name]
+            dummy_pad.shape = 'Circle'
+            dummy_pad.parameters = {'Diameter': f'0{self.units}'}
+
+            dummy_antipad = padstack_def.antipad_by_layer[self.dummy_layer_name]
+            dummy_antipad.shape = 'Circle'
+            dummy_antipad.parameters = {'Diameter': f'0{self.units}'}
         
         
 # --- 2. ViaInstance Class ---
@@ -156,15 +187,15 @@ class ViaInstance:
             self.placed_pins.append(via)
         elif self.type == 'single':
             via = edb_padstacks.place(center, self.padstack_name, 'net_'+eff_name, is_pin=True)
-            via.start_layer = self.padstack.start_layer
-            via.stop_layer = self.padstack.stop_layer
+            via.start_layer = self.padstack.signal_start_layer
+            via.stop_layer = self.padstack.signal_stop_layer
             self.placed_pins.append(via)
-            if self.padstack.bd_enabled:
-                via.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
-                if self.padstack.fill_enabled:
-                     via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                     via_fill.start_layer=self.padstack.bd_to_layer  
-                     #via_fill.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
+            if self.padstack.bd_enabled and self.padstack.signal_backdrill_to_layer:
+                via.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
+            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
+                 via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+                 via_fill.start_layer = self.padstack.fill_start_layer
+                 via_fill.stop_layer = self.padstack.fill_stop_layer
 
 
         elif self.type == 'differential':
@@ -178,24 +209,24 @@ class ViaInstance:
                 p_loc = self._to_mil(self.x - pitch / 2, self.y)
             via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+eff_name, is_pin=True)
             via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+eff_name, is_pin=True)
-            
-            via_p.start_layer = self.padstack.start_layer
-            via_p.stop_layer = self.padstack.stop_layer
-            via_n.start_layer = self.padstack.start_layer
-            via_n.stop_layer = self.padstack.stop_layer
+
+            via_p.start_layer = self.padstack.signal_start_layer
+            via_p.stop_layer = self.padstack.signal_stop_layer
+            via_n.start_layer = self.padstack.signal_start_layer
+            via_n.stop_layer = self.padstack.signal_stop_layer
 
             self.placed_pins.append(via_p)
             self.placed_pins.append(via_n)
-            if self.padstack.bd_enabled:
-                via_p.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
-                via_n.set_backdrill_bottom(self.padstack.bd_to_layer, self.padstack.bd_diameter, self.padstack.bd_stub)
-                if self.padstack.fill_enabled:
-                     via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                     via_fill_p.start_layer=self.padstack.bd_to_layer  
-                     #via_fill_p.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
-                     via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                     via_fill_n.start_layer=self.padstack.bd_to_layer  
-                     #via_fill_n.set_backdrill_top(self.padstack.bd_to_layer, self.padstack.bd_diameter, f"-{self.padstack.bd_stub}")
+            if self.padstack.bd_enabled and self.padstack.signal_backdrill_to_layer:
+                via_p.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
+                via_n.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
+            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
+                via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+                via_fill_p.start_layer = self.padstack.fill_start_layer
+                via_fill_p.stop_layer = self.padstack.fill_stop_layer
+                via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+                via_fill_n.start_layer = self.padstack.fill_start_layer
+                via_fill_n.stop_layer = self.padstack.fill_stop_layer
 
     def _create_void_trace(self, path_points, layer_name, width_val, gap_val, edb_modeler, layer_rects):
         """Creates a void trace on the reference layer."""
@@ -518,6 +549,7 @@ class EdbProject:
         self.edb = Edb(version=aedb_version)
         self.data = self._load_json(json_path)
         self.units = self.data['units']
+        self.stackup_layers, self.padstack_modeling = self._build_augmented_stackup()
         self.layer_rects = {} # Stores EDB object references for reference planes (for voids)
         self.padstack_configs = {} # Stores PadstackConfig objects by name
         self.via_instances = [] # Stores ViaInstance objects
@@ -534,6 +566,143 @@ class EdbProject:
     def _create_trace_partial(self, points, layer, width, name):
         """Wrapper for EDB trace creation with fixed end_cap_style."""
         return self.edb.modeler.create_trace(points, layer, width, end_cap_style="Flat", net_name=name)
+
+    def _build_augmented_stackup(self):
+        base_stackup = self.data['stackup']
+        layer_index = {layer['name']: idx for idx, layer in enumerate(base_stackup)}
+        padstack_modeling = {
+            padstack['name']: {
+                'signal_stop_layer': padstack['stopLayer'],
+                'signal_backdrill_to_layer': None,
+                'fill_start_layer': None,
+                'fill_stop_layer': padstack['stopLayer'],
+                'dummy_layer_name': None,
+            }
+            for padstack in self.data['padstacks']
+        }
+        split_points = {}
+        dummy_name_by_key = {}
+
+        for padstack in self.data['padstacks']:
+            backdrill = padstack.get('backdrill', {})
+            if not backdrill.get('enabled'):
+                continue
+
+            if backdrill.get('mode', 'layer') != 'layer':
+                raise ValueError(f"Padstack '{padstack['name']}' uses unsupported backdrill mode '{backdrill.get('mode')}'.")
+
+            stop_layer_name = backdrill.get('toLayer')
+            if not stop_layer_name:
+                raise ValueError(f"Padstack '{padstack['name']}' has backdrill enabled without a stop layer.")
+
+            stop_index = layer_index.get(stop_layer_name)
+            if stop_index is None:
+                raise ValueError(f"Padstack '{padstack['name']}' references unknown backdrill stop layer '{stop_layer_name}'.")
+
+            via_stop_index = layer_index.get(padstack['stopLayer'])
+            if via_stop_index is None:
+                raise ValueError(f"Padstack '{padstack['name']}' references unknown stop layer '{padstack['stopLayer']}'.")
+            if via_stop_index <= stop_index:
+                raise ValueError(
+                    f"Padstack '{padstack['name']}' stop layer '{padstack['stopLayer']}' must be below backdrill stop layer '{stop_layer_name}'."
+                )
+
+            stop_layer = base_stackup[stop_index]
+            if stop_layer['type'] != 'Conductor':
+                raise ValueError(f"Backdrill stop layer '{stop_layer_name}' for padstack '{padstack['name']}' must be a conductor layer.")
+
+            stub_length = float(backdrill.get('stub', 0) or 0)
+            dielectric_layer, offset_in_dielectric, available_stub = self._resolve_dummy_layer_position(
+                base_stackup,
+                stop_index,
+                via_stop_index,
+                stub_length,
+                padstack['name'],
+            )
+
+            dummy_key = (dielectric_layer['name'], round(offset_in_dielectric, 9))
+            dummy_layer_name = dummy_name_by_key.get(dummy_key)
+            if not dummy_layer_name:
+                dummy_layer_name = f"{stop_layer_name}_stub_{_format_name_token(stub_length)}"
+                dummy_name_by_key[dummy_key] = dummy_layer_name
+                split_points.setdefault(dielectric_layer['name'], []).append(
+                    {
+                        'offset': offset_in_dielectric,
+                        'dummy_layer_name': dummy_layer_name,
+                    }
+                )
+
+            padstack_modeling[padstack['name']] = {
+                'signal_stop_layer': padstack['stopLayer'],
+                'signal_backdrill_to_layer': dummy_layer_name,
+                'fill_start_layer': dummy_layer_name,
+                'fill_stop_layer': padstack['stopLayer'],
+                'dummy_layer_name': dummy_layer_name,
+            }
+
+        augmented_stackup = []
+        for layer in base_stackup:
+            entries = sorted(split_points.get(layer['name'], []), key=lambda item: item['offset'])
+            if not entries:
+                augmented_stackup.append(dict(layer))
+                continue
+
+            previous_offset = 0.0
+            segment_index = 1
+            layer_thickness = float(layer.get('thickness', 0) or 0)
+            for entry in entries:
+                segment_thickness = entry['offset'] - previous_offset
+                if segment_thickness > 0:
+                    augmented_stackup.append(self._make_split_dielectric_layer(layer, segment_index, segment_thickness))
+                    segment_index += 1
+
+                augmented_stackup.append(self._make_dummy_layer(layer, entry['dummy_layer_name']))
+                previous_offset = entry['offset']
+
+            remaining_thickness = layer_thickness - previous_offset
+            if remaining_thickness > 0:
+                augmented_stackup.append(self._make_split_dielectric_layer(layer, segment_index, remaining_thickness))
+
+        return augmented_stackup, padstack_modeling
+
+    def _resolve_dummy_layer_position(self, stackup, backdrill_stop_index, via_stop_index, stub_length, padstack_name):
+        if stub_length < 0:
+            raise ValueError(f"Padstack '{padstack_name}' stub length {stub_length}{self.units} is invalid.")
+
+        remaining_stub = stub_length
+        total_dielectric_thickness = 0.0
+
+        for candidate_index in range(backdrill_stop_index + 1, via_stop_index):
+            candidate = stackup[candidate_index]
+            candidate_thickness = float(candidate.get('thickness', 0) or 0)
+            if candidate_thickness == 0:
+                continue
+            if candidate['type'] != 'Dielectric':
+                continue
+
+            total_dielectric_thickness += candidate_thickness
+            if remaining_stub <= candidate_thickness:
+                return candidate, remaining_stub, total_dielectric_thickness
+            remaining_stub -= candidate_thickness
+
+        raise ValueError(
+            f"Padstack '{padstack_name}' stub length {stub_length}{self.units} exceeds total dielectric thickness "
+            f"{round(total_dielectric_thickness, 6)}{self.units} between '{stackup[backdrill_stop_index]['name']}' and '{stackup[via_stop_index]['name']}'."
+        )
+
+    def _make_split_dielectric_layer(self, base_layer, segment_index, thickness):
+        layer = dict(base_layer)
+        layer['name'] = f"{base_layer['name']}__seg{segment_index}"
+        layer['thickness'] = thickness
+        return layer
+
+    def _make_dummy_layer(self, dielectric_layer, dummy_layer_name):
+        layer = dict(dielectric_layer)
+        layer['name'] = dummy_layer_name
+        layer['thickness'] = 0
+        layer['generatedDummy'] = True
+        layer['isDummySignalLayer'] = True
+        return layer
 
     def setup_analysis(self):
         """Sets up the HFSS extent and solution setup."""
@@ -553,11 +722,11 @@ class EdbProject:
     def create_stackup(self):
         """Creates layers, materials, and reference ground planes."""
         material_names =[]
-        for layer in self.data['stackup']:
-            if layer['thickness'] == 0:
+        for layer in self.stackup_layers:
+            if layer['thickness'] == 0 and not layer.get('generatedDummy'):
                 continue
 
-            layer_type = 'signal' if layer['type'] == 'Conductor' else 'dielectric'
+            layer_type = 'signal' if layer['type'] == 'Conductor' or layer.get('isDummySignalLayer') else 'dielectric'
           
             # 1. Create Materials
             if layer['type'] == 'Conductor':
@@ -595,21 +764,22 @@ class EdbProject:
         """Creates padstack definitions and stores them in a dictionary."""
         for padstack_data in self.data['padstacks']:
             config = PadstackConfig(padstack_data, self.units)
+            config.apply_modeling(self.padstack_modeling.get(config.name))
             config.create_in_edb(self.edb.padstacks)
             
             # Handle Fill Material and Padstack
-            if config.fill_enabled and config.bd_enabled:
+            if config.fill_enabled and config.bd_enabled and config.fill_start_layer:
                 fill_mat_name = f'fill_mat_{config.fill_dk}_{config.fill_df}'
                 self.edb.materials.add_dielectric_material(fill_mat_name, config.fill_dk, config.fill_df)
                 
                 fill_padstack_name = f"{config.name}_fill"
-                self.edb.padstacks.create_padstack(
+                self.edb.padstacks.create(
                     padstackname=fill_padstack_name,
                     holediam=config.bd_diameter,
                     paddiam="0",
                     antipaddiam="0",
-                    startlayer=config.bd_to_layer,
-                    endlayer=config.stop_layer,
+                    start_layer=config.fill_start_layer,
+                    stop_layer=config.fill_stop_layer,
                 )
                 self.edb.padstacks.definitions[fill_padstack_name].material = fill_mat_name
                 self.edb.padstacks.definitions[fill_padstack_name].hole_plating_ratio = 100 
