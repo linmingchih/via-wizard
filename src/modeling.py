@@ -449,8 +449,17 @@ class DogBoneFeed:
             edb_project.edb.modeler.create_trace(pts_n, top_signal_layer, width, net_name=f"netp_{self.parent['name']}", end_cap_style="Round")
             
             # Place Pads
-            edb_project.edb.padstacks.place(self._to_mil(pos_x_end, pos_y_end), pad_name, f"netn_{self.parent['name']}", is_pin=True)
-            edb_project.edb.padstacks.place(self._to_mil(neg_x_end, neg_y_end), pad_name, f"netp_{self.parent['name']}", is_pin=True)
+            pos_pad = edb_project.edb.padstacks.place(
+                self._to_mil(pos_x_end, pos_y_end), pad_name, f"netn_{self.parent['name']}", is_pin=True
+            )
+            pos_pad.start_layer = top_signal_layer
+            pos_pad.stop_layer = top_signal_layer
+
+            neg_pad = edb_project.edb.padstacks.place(
+                self._to_mil(neg_x_end, neg_y_end), pad_name, f"netp_{self.parent['name']}", is_pin=True
+            )
+            neg_pad.start_layer = top_signal_layer
+            neg_pad.stop_layer = top_signal_layer
             
             # Create Voids
             if void_val > 0 and ref_rect:
@@ -494,9 +503,11 @@ class DogBoneFeed:
                 )
 
                 # End-pad
-                edb_project.edb.padstacks.place(
+                end_pad = edb_project.edb.padstacks.place(
                     self._to_mil(end_x, end_y), pad_name, 'GND', is_pin=True
                 )
+                end_pad.start_layer = top_signal_layer
+                end_pad.stop_layer = top_signal_layer
 
                 # Void on reference plane
                 if void_val > 0 and ref_rect:
@@ -532,7 +543,9 @@ class DogBoneFeed:
             edb_project.edb.modeler.create_trace(pts, top_signal_layer, width, net_name=net_name, end_cap_style="Round")
             
             # Place Pad
-            edb_project.edb.padstacks.place(self._to_mil(end_x, end_y), pad_name, net_name, is_pin=True)
+            end_pad = edb_project.edb.padstacks.place(self._to_mil(end_x, end_y), pad_name, net_name, is_pin=True)
+            end_pad.start_layer = top_signal_layer
+            end_pad.stop_layer = top_signal_layer
             
             # Create Void
             if void_val > 0 and ref_rect:
