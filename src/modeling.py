@@ -186,10 +186,6 @@ class ViaInstance:
             via.stop_layer = self.padstack.stop_layer
             self.placed_pins.append(via)
         elif self.type == 'single':
-            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
-                 via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                 via_fill.start_layer = self.padstack.fill_start_layer
-                 via_fill.stop_layer = self.padstack.fill_stop_layer
             via = edb_padstacks.place(center, self.padstack_name, 'net_'+eff_name, is_pin=True)
             via.start_layer = self.padstack.signal_start_layer
             via.stop_layer = self.padstack.signal_stop_layer
@@ -207,13 +203,6 @@ class ViaInstance:
             else: # horizontal
                 n_loc = self._to_mil(self.x + pitch / 2, self.y)
                 p_loc = self._to_mil(self.x - pitch / 2, self.y)
-            if self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer:
-                via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                via_fill_p.start_layer = self.padstack.fill_start_layer
-                via_fill_p.stop_layer = self.padstack.fill_stop_layer
-                via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
-                via_fill_n.start_layer = self.padstack.fill_start_layer
-                via_fill_n.stop_layer = self.padstack.fill_stop_layer
             via_p = edb_padstacks.place(p_loc, self.padstack_name, 'netp_'+eff_name, is_pin=True)
             via_n = edb_padstacks.place(n_loc, self.padstack_name, 'netn_'+eff_name, is_pin=True)
 
@@ -227,6 +216,34 @@ class ViaInstance:
             if self.padstack.bd_enabled and self.padstack.signal_backdrill_to_layer:
                 via_p.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
                 via_n.set_backdrill_bottom(self.padstack.signal_backdrill_to_layer, self.padstack.bd_diameter, 0.0)
+
+    def place_fill_via(self, edb_padstacks):
+        """Places deferred fill instances after all signal padstack instances exist."""
+        if not (self.padstack.bd_enabled and self.padstack.fill_enabled and self.padstack.fill_start_layer):
+            return
+
+        center = self._to_mil(self.x, self.y)
+
+        if self.type == 'single':
+            via_fill = edb_padstacks.place(center, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+            via_fill.start_layer = self.padstack.fill_start_layer
+            via_fill.stop_layer = self.padstack.fill_stop_layer
+        elif self.type == 'differential':
+            pitch = self.properties["pitch"]
+            if self.properties["orientation"] == "vertical":
+                n_loc = self._to_mil(self.x, self.y + pitch / 2)
+                p_loc = self._to_mil(self.x, self.y - pitch / 2)
+            else:
+                n_loc = self._to_mil(self.x + pitch / 2, self.y)
+                p_loc = self._to_mil(self.x - pitch / 2, self.y)
+
+            via_fill_p = edb_padstacks.place(p_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+            via_fill_p.start_layer = self.padstack.fill_start_layer
+            via_fill_p.stop_layer = self.padstack.fill_stop_layer
+
+            via_fill_n = edb_padstacks.place(n_loc, f"{self.padstack_name}_fill", 'GND', is_pin=False)
+            via_fill_n.start_layer = self.padstack.fill_start_layer
+            via_fill_n.stop_layer = self.padstack.fill_stop_layer
 
     def _create_void_trace(self, path_points, layer_name, width_val, gap_val, edb_modeler, layer_rects):
         """Creates a void trace on the reference layer."""
@@ -780,25 +797,29 @@ class EdbProject:
             config = PadstackConfig(padstack_data, self.units)
             config.apply_modeling(self.padstack_modeling.get(config.name))
             config.create_in_edb(self.edb.padstacks)
-            
-            # Handle Fill Material and Padstack
-            if config.fill_enabled and config.bd_enabled and config.fill_start_layer:
-                fill_mat_name = f'fill_mat_{config.fill_dk}_{config.fill_df}'
-                self.edb.materials.add_dielectric_material(fill_mat_name, config.fill_dk, config.fill_df)
-                
-                fill_padstack_name = f"{config.name}_fill"
-                self.edb.padstacks.create(
-                    padstackname=fill_padstack_name,
-                    holediam=config.bd_diameter,
-                    paddiam="0",
-                    antipaddiam="0",
-                    start_layer=config.fill_start_layer,
-                    stop_layer=config.fill_stop_layer,
-                )
-                self.edb.padstacks.definitions[fill_padstack_name].material = fill_mat_name
-                self.edb.padstacks.definitions[fill_padstack_name].hole_plating_ratio = 100 
 
             self.padstack_configs[config.name] = config
+
+    def create_fill_padstacks(self):
+        """Creates deferred fill padstack definitions after signal instances are placed."""
+        for config in self.padstack_configs.values():
+            if not (config.fill_enabled and config.bd_enabled and config.fill_start_layer):
+                continue
+
+            fill_mat_name = f'fill_mat_{config.fill_dk}_{config.fill_df}'
+            self.edb.materials.add_dielectric_material(fill_mat_name, config.fill_dk, config.fill_df)
+
+            fill_padstack_name = f"{config.name}_fill"
+            self.edb.padstacks.create(
+                padstackname=fill_padstack_name,
+                holediam=config.bd_diameter,
+                paddiam="0",
+                antipaddiam="0",
+                start_layer=config.fill_start_layer,
+                stop_layer=config.fill_stop_layer,
+            )
+            self.edb.padstacks.definitions[fill_padstack_name].material = fill_mat_name
+            self.edb.padstacks.definitions[fill_padstack_name].hole_plating_ratio = 100
 
     def process_via_instances(self):
         """Creates via objects, processes voids, places vias, and creates ports/traces."""
@@ -845,7 +866,12 @@ class EdbProject:
                  db = DogBoneFeed(via_data, self.instance_map, self.units, self._to_mil)
                  db.process(self)
 
-        # 5. Create Components from Pins
+        # 6. Create fill padstacks and fill instances after all other padstack instances exist
+        self.create_fill_padstacks()
+        for via in self.via_instances:
+            via.place_fill_via(self.edb.padstacks)
+
+        # 7. Create Components from Pins
         self.create_components_from_pins()
 
     def create_components_from_pins(self):
